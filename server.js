@@ -1,4 +1,5 @@
 require("dotenv").config(); //initializes environment variables globally
+const path = require("path");
 
 const express = require("express");
 const app = express();
@@ -10,12 +11,18 @@ const PORT = 8080;
 app.use(express.urlencoded({ extended: false }));
 //enables form submissions to be accessible as properties in the req.body
 
+app.use(express.static(path.join(__dirname, "react-bundles", "home")));
+app.use(
+  express.static(path.join(__dirname, "react-bundles", "log-in-sign-up"))
+);
+//so I can serve the react bundles via api endpoint requests
+
 //******************Routes********************/
 
-const rootRouter = null,
-  loginRouter = null,
-  signupRouter = null,
-  homeRouter = null;
+const rootRouter = require("./src/routes/rootRouter"),
+  loginRouter = require("./src/routes/loginRouter"),
+  signupRouter = require("./src/routes/signupRouter"),
+  homeRouter = require("./src/routes/homeRouter");
 
 app.use("/", rootRouter);
 //will check for a web token and decide whether to reroute to
