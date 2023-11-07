@@ -10,7 +10,7 @@ function generateExpirationTime() {
 }
 
 async function authUser(email, password) {
-  let connection, user;
+  let connection, user, error;
 
   try {
     connection = await pool.connect();
@@ -19,7 +19,7 @@ async function authUser(email, password) {
       [email]
     ); //only query using the email first
 
-    if (result.rowCount !== 1) {
+    if (result.rows.length !== 1) {
       throw new Error("Invalid Credentials");
       //handled by the catch block
     }
@@ -34,14 +34,18 @@ async function authUser(email, password) {
     } else {
       throw new Error("Invalid Credentials");
     }
-  } catch (error) {
-    return { type: "error", error, stack: error.stack };
+  } catch (err) {
+    error = { type: "error", error: err, stack: err.stack };
     //will be used in middleware conditional
   } finally {
     if (connection) {
       connection.release();
       //always release the connection after attempting db actions
     }
+  }
+
+  if (error) {
+    return error;
   }
 
   if (user) {
@@ -53,11 +57,6 @@ async function authUser(email, password) {
     //and assigns an expiration time value to such
 
     return { type: "token", token };
-  } else {
-    //middleware that uses this authentication will create
-    //authentication conditionals based on whether a token
-    //was returned
-    return null;
   }
 }
 

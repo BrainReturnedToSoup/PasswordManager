@@ -41,7 +41,7 @@ async function tryLoginAttempt(req, res) {
   if (validationResult.type === "error") {
     res
       .status(400)
-      .json({ error: "cnostraint-validation", result: validationResult });
+      .json({ error: "constraint-validation", result: validationResult });
   }
   //redirect to the same page, the client side constraint validation will
   //alert the user of their issues first

@@ -44,9 +44,10 @@ async function trySignupAttempt(req, res, next) {
   const validationResult = validateEmailAndPassword(req.body);
 
   if (validationResult.type === "error") {
-    res
-      .status(500)
-      .json({ error: "cnostraint-validation", result: validationResult });
+    res.status(500).json({
+      error: "cnostraint-validation",
+      result: validationResult.errors,
+    });
   }
 
   const { email } = req.body;
@@ -70,7 +71,7 @@ async function trySignupAttempt(req, res, next) {
     res.status(500).json({ error: "db-connection" });
   }
 
-  if (queryResult?.rowCount > 0) {
+  if (queryResult?.rows.length > 0) {
     res.status(400).json({ error: "user-exists" });
   }
 
@@ -80,16 +81,16 @@ async function trySignupAttempt(req, res, next) {
 async function addNewUser(req, res, next) {
   const { email, password } = req.body;
 
-  const hashedPW = bcrypt.hash(
-    password,
-    process.env.BCRYPT_SR,
-    process.env.BCRYPT_HK
-  );
-
   let connection, error;
 
   try {
     const randomPK = uuid();
+
+    const hashedPW = await bcrypt.hash(
+      password,
+      process.env.BCRYPT_SR,
+      process.env.BCRYPT_HK
+    );
 
     connection = await pool.connect();
     await connection.query(
@@ -118,7 +119,9 @@ async function authAndSendToHome(req, res) {
   //either a token or an error of some kind will be returned
 
   if (authResult.type === "error") {
-    res.status(500).json({ error: "user-authentication" });
+    res
+      .status(500)
+      .json({ error: "user-authentication", result: authResult.error });
   }
 
   if (authResult.type === "token") {
