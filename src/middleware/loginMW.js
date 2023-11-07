@@ -1,6 +1,23 @@
-const sanitizeInput = require("../utils/inputSanitizer");
-const passport = require("../utils/passport");
-const authUser = require("../utils/jwt");
+const validateEmailAndPassword = require("../utils/validateEmailAndPassword");
+const { authUser, checkAuth } = require("../utils/jwt");
+
+//*****************Auth******************/
+
+function checkAuthLogin(req, res, next) {
+  const { result } = checkAuth(req);
+
+  switch (result) {
+    case "valid":
+      res.status(200).redirect("/home");
+      break;
+    case "invalid":
+      next();
+      break;
+    case "error":
+      res.status(500).json({ error: "authentication-check" });
+      break;
+  }
+}
 
 //******************GET******************/
 
@@ -9,40 +26,38 @@ function serveLoginSignupBundle(req, res) {
 
   res.setHeader("Content-Type", "text/html");
   res.sendFile(path.join(bundlePath, "index.html"));
-  //serves the react bundle SPA fr logging in and signing up for the service
 }
+//serves the react bundle SPA for logging in and signing up for the service
+//the corresponding route will be used on the client sided routing in order to
+//redirect to the corresponding sign up page
 
-const getAuth = passport.authenticate("jwt", (error, payload) => {
-  if (error) {
-    res.status(500).json({ message: "Internal server error." });
-  }
-
-  if (payload) {
-    res.status(200).redirect("/home");
-  } else {
-    next();
-  }
-})(req, res, next);
-
-const loginPageMW = [getAuth, serveLoginSignupBundle];
+const loginPageMW = [checkAuthLogin, serveLoginSignupBundle];
 
 //******************POST*****************/
 
-function tryLoginAttempt(req, res) {
-  const { email, password } = sanitizeInput(req.body);
+async function tryLoginAttempt(req, res) {
+  const validationResult = validateEmailAndPassword(req.body);
 
-  const result = authUser(email, password);
+  if (validationResult.type === "error") {
+    res
+      .status(400)
+      .json({ error: "cnostraint-validation", result: validationResult });
+  }
+  //redirect to the same page, the client side constraint validation will
+  //alert the user of their issues first
+
+  const authResult = await authUser(email, password);
   //perform authentication on the users email and password
   //either a token or an error of some kind will be returned
 
-  if (result.type === "error") {
-    const { error, stack } = result;
+  if (authResult.type === "error") {
+    const { error, stack } = authResult;
 
-    res.status(500).json({ message: "Internal server error", error, stack });
+    res.status(500).json({ error: "user-authentication", result: error });
   }
 
-  if (result.type === "token") {
-    const { token } = result;
+  if (authResult.type === "token") {
+    const { token } = authResult;
 
     res.cookie("jwt", token, {
       secure: true, //the cookie is only sent over https
@@ -54,20 +69,7 @@ function tryLoginAttempt(req, res) {
   }
 }
 
-const postAuth = passport.authenticate("jwt", (error, payload) => {
-  if (error) {
-    res.status(500).json({ message: "Internal server error." });
-  }
-
-  if (payload) {
-    res.status(200).redirect("/home");
-    //valid token already exists, redirect to home
-  } else {
-    next(); //proceed to the middleware that executes the login attempt
-  }
-})(req, res, next);
-
-const loginPostMW = [postAuth, tryLoginAttempt];
+const loginPostMW = [checkAuthLogin, tryLoginAttempt];
 
 //*****************EXPORTS***************/
 

@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-const util = require("util");
+const passport = require("./passport.js");
 
 const pool = require("../services/postgresql.js");
 
@@ -61,31 +61,22 @@ async function authUser(email, password) {
   }
 }
 
-const verifyAsync = util.promisify(jwt.verify);
-//makes the 'verify' method compatible with async/await
-
-async function verifyToken(token) {
-  try {
-    const decoded = await verifyAsync(token, process.env.JWT_SK);
-
-    // Check if the user exists in the database
-    const connection = await pool.connect();
-    const result = await connection.query(
-      "SELECT COUNT(*) FROM users WHERE user_uuid = $1",
-      [decoded.user_uuid]
-    );
-
-    if (result.rows[0].count !== 1) {
-      throw new Error("Invalid Web Token");
+const checkAuth = (req) => {
+  passport.authenticate("jwt", (error, validToken) => {
+    if (validToken) {
+      return { result: "valid" };
+    } else if (
+      error.name === "TokenExpiredError" ||
+      error.name === "JsonWebTokenError"
+    ) {
+      return { result: "invalid" };
+    } else {
+      return { result: "error" };
     }
+  })(req);
+};
 
-    return { result: true };
-  } catch (error) {
-    return { result: false, error: error.message };
-  }
-}
-
-module.exports = { authUser, verifyToken };
+module.exports = { authUser, checkAuth };
 //export to be used as a helper function in the middleware
 //This way, middleware can behave based on the output of these functions
 //as opposed to using the functions as middleware themselves

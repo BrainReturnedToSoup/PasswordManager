@@ -14,7 +14,7 @@
 //incrementing. The records are normalized via the user uuid for the foreign key column
 //'user_uuid'
 
-//this way, logging in is a simple as querying the 'user' table 
+//this way, logging in is a simple as querying the 'user' table
 //using the username and password supplied, and then using the corresponding
 //artificial key in the web token.
 
@@ -23,7 +23,7 @@
 //in combination with the auto incrementing column pertaining to all records of credentials
 //for the specific user.
 
-//The auto incrementing column in this case enables a more stable querying when it comes to 
+//The auto incrementing column in this case enables a more stable querying when it comes to
 //making api requests based on the clicked credential pair on the UI, because the credentials
 //will not be shown until you click on such. This is so that each action you take when
 //looking at sensitive data is vetted as the web token in question is checked each time.
@@ -35,16 +35,17 @@
 //of the need to be able to dehash into an original form. This is something that bcrypt does not possess,
 //which is important considering that we are going to be sending these credentials back to the user.
 
+const pgp = require("pg-promise")(); //postgreSQL
 
-
-const { Pool } = require("pg"); //postgreSQL
-
-const pool = new Pool({
+const config = {
   user: process.env.POSTGRESQL_USER,
   host: process.env.POSTGRESQL_HOST,
   database: process.env.POSTGRESQL_DB,
   password: process.env.POSTGRESQL_PW,
   port: process.env.POSTGRESQL_PORT,
-});
+};
+
+const db = pgp(config),
+  pool = db.$pool;
 
 module.exports = pool;
