@@ -9,12 +9,12 @@ function validateEmailAndPassword(req) {
     .matches(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/
     )
-    .withMessage("password")
-    .run(req);
+    .withMessage("password");
+
+  //only if the field exists in the form submission
 
   if (req.body.confirmPassword) {
-    //only if the field exists in the form submission
-    check("confirm-password")
+    check("confirmPassword")
       .notEmpty()
       .isLength({ min: 12, max: 20 })
       .matches(
@@ -25,8 +25,7 @@ function validateEmailAndPassword(req) {
         //a custom validation method that makes sure that
         //the confirm password field matches the password field
       })
-      .withMessage("confirm-password")
-      .run(req);
+      .withMessage("confirm-password");
   }
 
   const errors = validationResult(req);

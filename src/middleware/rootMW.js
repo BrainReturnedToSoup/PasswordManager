@@ -1,5 +1,8 @@
 const { checkAuth } = require("../utils/jwt");
 
+const path = require("path");
+const fs = require("fs");
+
 async function checkAuthRoot(req, res) {
   let authResult;
 
@@ -10,6 +13,9 @@ async function checkAuthRoot(req, res) {
   }
 
   switch (authResult) {
+    case "no-token":
+      res.redirect("/log-in");
+      break;
     case "valid-token":
       res.status(200).redirect("/home");
       break;

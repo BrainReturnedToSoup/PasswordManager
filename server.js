@@ -4,7 +4,7 @@ const path = require("path");
 const express = require("express");
 const app = express();
 
-const PORT = 8080;
+const PORT = 9229;
 
 const cookieParser = require("cookie-parser");
 
@@ -12,14 +12,15 @@ const cookieParser = require("cookie-parser");
 
 app.use(cookieParser());
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));
 //enables form submissions to be accessible as properties in the req.body
 
-app.use(express.static(path.join(__dirname, "react-bundles", "home")));
+app.use(express.static(path.join(__dirname, "src", "react-bundles", "home")));
 app.use(
-  express.static(path.join(__dirname, "react-bundles", "log-in-sign-up"))
+  express.static(path.join(__dirname, "src", "react-bundles", "log-in-sign-up"))
 );
-//so I can serve the react bundles via api endpoint requests
+//so that when I serve index.html files for the bundles, the head of each document
+//can make more requests for static assets such as JS and CSS files
 
 //******************Routes********************/
 

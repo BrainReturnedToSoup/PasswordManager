@@ -39,7 +39,7 @@ async function authUser(email, password) {
     authError = err;
     //will be used in middleware conditional
   } finally {
-    if (connection) {
+    if (connection && typeof connection.release === "function") {
       connection.release();
       //always release the connection after attempting db actions
     }
@@ -112,7 +112,7 @@ async function validateDecodedToken(jwtToken) {
   } catch (err) {
     validationError = err;
   } finally {
-    if (connection) {
+    if (connection && typeof connection.release === "function") {
       connection.release();
     }
   }

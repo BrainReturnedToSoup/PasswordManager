@@ -1,6 +1,9 @@
 const validateEmailAndPassword = require("../utils/validateEmailAndPassword");
 const { authUser, checkAuth } = require("../utils/jwt");
 
+const path = require("path");
+const fs = require("fs");
+
 //*****************Auth******************/
 
 async function checkAuthLogin(req, res, next) {
@@ -13,6 +16,9 @@ async function checkAuthLogin(req, res, next) {
   }
 
   switch (authResult) {
+    case "no-token":
+      next();
+      break;
     case "valid-token":
       res.status(200).redirect("/home");
       break;
@@ -30,10 +36,25 @@ async function checkAuthLogin(req, res, next) {
 //******************GET******************/
 
 function serveLoginSignupBundle(req, res) {
-  const bundlePath = path.join(__dirname, "react-bundles", "log-in-sign-up");
+  const parentDir = path.join(__dirname, ".."),
+    bundlePath = path.join(
+      parentDir,
+      "react-bundles",
+      "log-in-sign-up",
+      "index.html"
+    );
 
-  res.setHeader("Content-Type", "text/html");
-  res.sendFile(path.join(bundlePath, "index.html"));
+  //have to read the file, and then send the parsed index.html file
+  //to the user, this operation is normally async
+  try {
+    const data = fs.readFileSync(bundlePath);
+
+    res.setHeader("Content-Type", "text/html");
+    res.send(data);
+  } catch (error) {
+    console.error(error, error.stack);
+    res.status(500).send({ error: "bundle serving error" });
+  }
 }
 //serves the react bundle SPA for logging in and signing up for the service
 //the corresponding route will be used on the client sided routing in order to
@@ -44,7 +65,7 @@ const loginPageMW = [checkAuthLogin, serveLoginSignupBundle];
 //******************POST*****************/
 
 async function tryLoginAttempt(req, res) {
-  const validationResult = validateEmailAndPassword(req.body);
+  const validationResult = validateEmailAndPassword(req);
 
   if (validationResult === "error") {
     res.status(400).json({ error: "constraint-validation-failure" });

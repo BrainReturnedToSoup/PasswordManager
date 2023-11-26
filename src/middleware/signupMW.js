@@ -1,6 +1,9 @@
 const validateEmailAndPassword = require("../utils/validateEmailAndPassword");
 const { authUser, checkAuth } = require("../utils/jwt");
 
+const path = require("path");
+const fs = require("fs");
+
 const bcrypt = require("bcrypt");
 const { v4: uuid } = require("uuid");
 
@@ -18,6 +21,9 @@ async function checkAuthSignup(req, res, next) {
   }
 
   switch (authResult) {
+    case "no-token":
+      next();
+      break;
     case "valid-token":
       res.status(200).redirect("/home");
       break;
@@ -35,10 +41,25 @@ async function checkAuthSignup(req, res, next) {
 //******************GET******************/
 
 function serveLoginSignupBundle(req, res) {
-  const bundlePath = path.join(__dirname, "react-bundles", "log-in-sign-up");
+  const parentDir = path.join(__dirname, ".."),
+    bundlePath = path.join(
+      parentDir,
+      "react-bundles",
+      "log-in-sign-up",
+      "index.html"
+    );
 
-  res.setHeader("Content-Type", "text/html");
-  res.sendFile(path.join(bundlePath, "index.html"));
+  //have to read the file, and then send the parsed index.html file
+  //to the user, this operation is normally async
+  try {
+    const data = fs.readFileSync(bundlePath);
+
+    res.setHeader("Content-Type", "text/html");
+    res.send(data);
+  } catch (error) {
+    console.error(error, error.stack);
+    res.status(500).send({ error: "bundle serving error" });
+  }
 }
 //serves the react bundle SPA for logging in and signing up for the service
 //the corresponding route will be used on the client sided routing in order to
@@ -49,9 +70,11 @@ const signupGetMW = [checkAuthSignup, serveLoginSignupBundle];
 //*****************POST******************/
 
 async function trySignupAttempt(req, res, next) {
-  const validationResult = validateEmailAndPassword(req.body);
+  const validationResult = validateEmailAndPassword(req);
 
   if (validationResult.type === "error") {
+    console.error("sign-up-constraint-validation-failure");
+
     res.status(500).json({
       error: "constraint-validation-failure",
     });
@@ -69,16 +92,22 @@ async function trySignupAttempt(req, res, next) {
   } catch (err) {
     error = err;
   } finally {
-    if (connection) {
+    if (connection && typeof connection.release === "function") {
       connection.release();
     }
   }
 
   if (error) {
+    console.error("db-sign-up-connection-error", error);
+
     res.status(500).json({ error: "db-connection" });
   }
 
-  if (queryResult?.rows.length > 0) {
+  console.log("queryresult", queryResult);
+
+  if (queryResult[0].count > 0) {
+    console.error("sign-up-existing-user-error");
+
     res.status(400).json({ error: "existing-user" });
   }
 
@@ -93,10 +122,10 @@ async function addNewUser(req, res, next) {
   try {
     const newUUID = uuid();
 
-    const hashedPW = bcrypt.hash(
+    const hashedPW = bcrypt.hashSync(
       password,
-      process.env.BCRYPT_SR,
-      process.env.BCRYPT_HK
+      parseInt(process.env.BCRYPT_SR),
+      parseInt(process.env.BCRYPT_HK)
     );
 
     connection = await pool.connect();
@@ -107,12 +136,14 @@ async function addNewUser(req, res, next) {
   } catch (err) {
     error = err;
   } finally {
-    if (connection) {
+    if (connection && typeof connection.release === "function") {
       connection.release();
     }
   }
 
   if (error) {
+    console.log("sign-up-add-new-user-db-connection-error", error);
+
     res.status(500).json({ error: "db-connection" });
   }
 
@@ -126,6 +157,8 @@ async function authAndSendToHome(req, res) {
   //either a token or an error of some kind will be returned
 
   if (authResult.type === "error") {
+    console.error("sign-up-auth-and-send-home-error");
+
     res.status(500).json({
       error: "user-authentication-failure",
       message: authResult.error,

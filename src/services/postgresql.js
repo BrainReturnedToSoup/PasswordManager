@@ -45,7 +45,6 @@ const config = {
   port: process.env.POSTGRESQL_PORT,
 };
 
-const db = pgp(config),
-  pool = db.$pool;
+const pool = pgp(config);
 
 module.exports = pool;
