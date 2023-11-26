@@ -9,6 +9,7 @@ router.get("/", loginPageMW);
 const postOptions = {
   origin: [process.env.SERVER_ORIGIN + "/log-in"],
   methods: "POST",
+  credentials: true,
 };
 //CORS setup so that POST requests to the '/log-in' endpoint
 //have to originate from a source that contains the server origin as well

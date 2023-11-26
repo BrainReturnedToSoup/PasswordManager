@@ -2,13 +2,14 @@ const router = require("express").Router();
 const cors = require("cors");
 
 //*************Routes**************/
-const { signupPageMW, signupPostMW } = require("../middleware/signupRouter");
+const { signupGetMW, signupPostMW } = require("../middleware/signupMW");
 
-router.get("/", signupPageMW);
+router.get("/", signupGetMW);
 
 const postOptions = {
   origin: [process.env.SERVER_ORIGIN + "/sign-up"],
   methods: "POST",
+  credentials: true,
 };
 //CORS setup so that POST requests to the '/log-in' endpoint
 //have to originate from a source that contains the server origin as well

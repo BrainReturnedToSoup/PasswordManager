@@ -3,19 +3,27 @@ const { authUser, checkAuth } = require("../utils/jwt");
 
 //*****************Auth******************/
 
-function checkAuthLogin(req, res, next) {
-  const { result } = checkAuth(req);
+async function checkAuthLogin(req, res, next) {
+  let authResult;
 
-  switch (result) {
-    case "valid":
+  try {
+    authResult = await checkAuth(req);
+  } catch (error) {
+    console.error(error, error.stack);
+  }
+
+  switch (authResult) {
+    case "valid-token":
       res.status(200).redirect("/home");
       break;
-    case "invalid":
+    case "invalid-token":
       next();
       break;
-    case "error":
-      res.status(500).json({ error: "authentication-check" });
+    case "validation-error":
+      res.status(500).clearCookie("jwt").json({ error: "validation-error" });
       break;
+    default:
+      res.status(500).json({ error: "checkAuth-login-error" });
   }
 }
 
@@ -38,23 +46,27 @@ const loginPageMW = [checkAuthLogin, serveLoginSignupBundle];
 async function tryLoginAttempt(req, res) {
   const validationResult = validateEmailAndPassword(req.body);
 
-  if (validationResult.type === "error") {
-    res
-      .status(400)
-      .json({ error: "constraint-validation", result: validationResult });
+  if (validationResult === "error") {
+    res.status(400).json({ error: "constraint-validation-failure" });
   }
   //redirect to the same page, the client side constraint validation will
   //alert the user of their issues first
 
-  const authResult = await authUser(email, password);
-  //perform authentication on the users email and password
-  //either a token or an error of some kind will be returned
+  let authResult;
+
+  try {
+    authResult = await authUser(email, password);
+    //perform authentication on the users email and password
+    //either a token or an error of some kind will be returned
+  } catch (error) {
+    console.error(error, error.stack);
+  }
 
   if (authResult.type === "error") {
-    const { error, stack } = authResult;
-
-    res.status(500).json({ error: "user-authentication", result: error });
-  }
+    res.status(500).json({
+      error: "user-auth-failure",
+    });
+  } //for both actual errors and invalid login info errors
 
   if (authResult.type === "token") {
     const { token } = authResult;

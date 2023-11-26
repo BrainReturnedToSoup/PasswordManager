@@ -4,18 +4,21 @@ const path = require("path");
 const express = require("express");
 const app = express();
 
-const cors = require("cors");
-
 const PORT = 8080;
 
+const cookieParser = require("cookie-parser");
+
 //***************Server-Config****************/
+
+app.use(cookieParser());
 
 app.use(express.urlencoded({ extended: false }));
 //enables form submissions to be accessible as properties in the req.body
 
 app.use(express.static(path.join(__dirname, "react-bundles", "home")));
-app.use(express.static(path.join(__dirname, "react-bundles", "log-in")));
-app.use(express.static(path.join(__dirname, "react-bundles", "sign-up")));
+app.use(
+  express.static(path.join(__dirname, "react-bundles", "log-in-sign-up"))
+);
 //so I can serve the react bundles via api endpoint requests
 
 //******************Routes********************/
@@ -25,19 +28,11 @@ const rootRouter = require("./src/routes/rootRouter"),
   signupRouter = require("./src/routes/signupRouter"),
   homeRouter = require("./src/routes/homeRouter");
 
-const rootCORS = {},
-  loginCORS = {},
-  signupCORS = {},
-  homeCORS = {};
-
-app.use("/", cors(rootCORS));
 app.use("/", rootRouter);
 //will check for a web token and decide whether to reroute to
 //the home page or to the login page.
 
-app.use("/", cors(loginCORS));
 app.use("/log-in", loginRouter);
-
 //will check for a web token and decide whether to reroute to the
 //home page. POST end points will be for user authentication
 //and will supply web tokens upon success.
@@ -45,7 +40,6 @@ app.use("/log-in", loginRouter);
 //CORS will be used in order to only allow POST requests
 //from request sources that start with 'https://www.url.com/log-in'
 
-app.use("/sign-up", cors(signupCORS));
 app.use("/sign-up", signupRouter);
 //will check for a web token and decide whether to reroute to the
 //home page or login page. Will validate whether a user with the
@@ -54,8 +48,7 @@ app.use("/sign-up", signupRouter);
 //CORS will be used in order to only allow POST requests
 //from request sources that start with 'https://www.url.com/sign-up'
 
-app.use("/home", cors(homeCORS));
-app.use("/home", homeRouter);
+// app.use("/home", homeRouter);
 //will be a web page that is a react SPA. Will provide a
 //GUI for interacting with all of the corresponding users credentials.
 //Also features client side routes for things such as settings, etc.

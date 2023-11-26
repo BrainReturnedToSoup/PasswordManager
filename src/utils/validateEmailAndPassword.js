@@ -5,7 +5,7 @@ function validateEmailAndPassword(req) {
 
   check("password")
     .notEmpty()
-    .isLength({ min: 12 })
+    .isLength({ min: 12, max: 20 })
     .matches(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/
     )
@@ -16,7 +16,7 @@ function validateEmailAndPassword(req) {
     //only if the field exists in the form submission
     check("confirm-password")
       .notEmpty()
-      .isLength({ min: 12 })
+      .isLength({ min: 12, max: 20 })
       .matches(
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/
       )
@@ -32,9 +32,9 @@ function validateEmailAndPassword(req) {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
-    return { type: "error", errors: errors };
+    return "error";
   } else {
-    return { type: "valid" };
+    return "valid";
   }
 }
 

@@ -1,18 +1,26 @@
 const { checkAuth } = require("../utils/jwt");
 
-function checkAuthRoot(req, res) {
-  const { result } = checkAuth(req);
+async function checkAuthRoot(req, res) {
+  let authResult;
 
-  switch (result) {
-    case "valid":
+  try {
+    authResult = await checkAuth(req);
+  } catch (error) {
+    console.error(error, error.stack);
+  }
+
+  switch (authResult) {
+    case "valid-token":
       res.status(200).redirect("/home");
       break;
-    case "invalid":
-      res.status(200).redirect("/log-in");
+    case "invalid-token":
+      res.redirect("/log-in");
       break;
-    case "error":
-      res.status(200).redirect("/log-in");
+    case "validation-error":
+      res.clearCookie("jwt").redirect("/log-in");
       break;
+    default:
+      res.status(500).json({ error: "checkAuth-root-error" });
   }
 }
 
