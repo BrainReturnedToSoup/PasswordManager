@@ -1,0 +1,21 @@
+const path = require("path");
+const fs = require("fs/promises");
+
+async function serveBundle(req, res) {
+  const parentDir = path.join(__dirname, ".."),
+    bundlePath = path.join(parentDir, "react-bundle", "index.html");
+
+  //have to read the file, and then send the parsed index.html file
+  //to the user, this operation is normally async
+  try {
+    const data = await fs.readFile(bundlePath);
+
+    res.setHeader("Content-Type", "text/html");
+    res.send(data);
+  } catch (error) {
+    console.error(error, error.stack);
+    res.status(500).send({ error: "bundle serving error" });
+  }
+}
+
+module.exports = serveBundle;

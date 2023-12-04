@@ -1,81 +1,63 @@
 const validateEmailAndPassword = require("../utils/validateEmailAndPassword");
 const { authUser, checkAuth } = require("../utils/jwt");
+const serveBundle = require("../utils/serveBundle");
 
-const path = require("path");
-const fs = require("fs");
+//******************GET******************/
 
-//*****************Auth******************/
+const loginGetMW = [serveBundle];
 
-async function checkAuthLogin(req, res, next) {
-  let authResult;
+//******************POST*****************/
+
+//POST requests on the /log-in route which is for authenticating a user using
+//the login form values
+
+async function validateAuthLoginPost(req, res, next) {
+  let checkResult;
 
   try {
-    authResult = await checkAuth(req);
+    checkResult = await checkAuth(req);
   } catch (error) {
-    console.error(error, error.stack);
+    console.error(
+      "LOG-IN ERROR: validateAuthLoginPost -> checkAuth",
+      error,
+      error.stack
+    );
   }
 
-  switch (authResult) {
+  switch (checkResult) {
     case "no-token":
       next();
       break;
     case "valid-token":
-      res.status(200).redirect("/home");
+      res.status(500).json({ error: "valid-token-already-present" });
       break;
     case "invalid-token":
       next();
       break;
     case "validation-error":
-      res.status(500).clearCookie("jwt").json({ error: "validation-error" });
+      res.status(500).json({ error: "validation-error" });
       break;
     default:
-      res.status(500).json({ error: "checkAuth-login-error" });
+      console.error("LOG-IN ERROR: validateAuthLoginPost function error");
+      res.status(500).json({ error: "validateAuthLoginPost-error" });
   }
 }
-
-//******************GET******************/
-
-function serveLoginSignupBundle(req, res) {
-  const parentDir = path.join(__dirname, ".."),
-    bundlePath = path.join(
-      parentDir,
-      "react-bundles",
-      "log-in-sign-up",
-      "index.html"
-    );
-
-  //have to read the file, and then send the parsed index.html file
-  //to the user, this operation is normally async
-  try {
-    const data = fs.readFileSync(bundlePath);
-
-    res.setHeader("Content-Type", "text/html");
-    res.send(data);
-  } catch (error) {
-    console.error(error, error.stack);
-    res.status(500).send({ error: "bundle serving error" });
-  }
-}
-//serves the react bundle SPA for logging in and signing up for the service
-//the corresponding route will be used on the client sided routing in order to
-//redirect to the corresponding sign up page
-
-const loginPageMW = [checkAuthLogin, serveLoginSignupBundle];
-
-//******************POST*****************/
 
 async function tryLoginAttempt(req, res) {
   const validationResult = validateEmailAndPassword(req);
 
   if (validationResult === "error") {
+    console.error("LOG-IN ERROR: constraint-validation-failure");
+
     res.status(400).json({ error: "constraint-validation-failure" });
+    return;
   }
-  //redirect to the same page, the client side constraint validation will
-  //alert the user of their issues first
 
   let authResult;
 
   try {
+    const { email, password } = req.body;
+
     authResult = await authUser(email, password);
     //perform authentication on the users email and password
     //either a token or an error of some kind will be returned
@@ -84,26 +66,31 @@ async function tryLoginAttempt(req, res) {
   }
 
   if (authResult.type === "error") {
+    console.error("LOG-IN ERROR: user-auth-failure");
+
     res.status(500).json({
       error: "user-auth-failure",
     });
+    return;
   } //for both actual errors and invalid login info errors
 
   if (authResult.type === "token") {
-    const { token } = authResult;
+    const { token } = authResult,
+      cookieOptions = {
+        secure: true, //the cookie is only sent over https
+        httpOnly: true, //prevents client side JS from accessing the cookie
+        sameSite: "Strict", //prevents requests from different origins from using the cookie
+      };
 
-    res.cookie("jwt", token, {
-      secure: true, //the cookie is only sent over https
-      httpOnly: true, //prevents client side JS from accessing the cookie
-      sameSite: "Strict", //prevents requests from different origins from using the cookie
-    }); //save the token in the cookies
-
-    res.status(200).redirect("/home"); //the token is stored in the users secured cookies, redirect to home
+    res
+      .cookie("jwt", token, cookieOptions)
+      .status(200)
+      .json({ redirect: "/home" }); //the token is stored in the users secured cookies, redirect to home
   }
 }
 
-const loginPostMW = [checkAuthLogin, tryLoginAttempt];
+const loginPostMW = [validateAuthLoginPost, tryLoginAttempt];
 
 //*****************EXPORTS***************/
 
-module.exports = { loginPageMW, loginPostMW };
+module.exports = { loginGetMW, loginPostMW };

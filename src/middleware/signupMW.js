@@ -1,94 +1,79 @@
 const validateEmailAndPassword = require("../utils/validateEmailAndPassword");
 const { authUser, checkAuth } = require("../utils/jwt");
+const serveBundle = require("../utils/serveBundle");
 
-const path = require("path");
-const fs = require("fs");
-
-const bcrypt = require("bcrypt");
 const { v4: uuid } = require("uuid");
+const { promisify } = require("util");
+const bcrypt = require("bcrypt"),
+  bcryptHash = promisify(bcrypt.hash);
 
 const pool = require("../services/postgresql");
 
-//*****************Auth******************/
+//******************GET******************/
 
-async function checkAuthSignup(req, res, next) {
-  let authResult;
+const signupGetMW = [serveBundle];
+
+//*****************POST******************/
+
+//POST requests on the /sign-up route which is for adding a new user using
+//the signup form values
+
+async function validateAuthSignupPost(req, res, next) {
+  let checkResult;
 
   try {
-    authResult = await checkAuth(req);
+    checkResult = await checkAuth(req);
   } catch (error) {
-    console.error(error, error.stack);
+    console.error(
+      "SIGN-UP ERROR: validateAuthSignupPost -> checkAuth",
+      error,
+      error.stack
+    );
   }
 
-  switch (authResult) {
+  switch (checkResult) {
     case "no-token":
       next();
       break;
     case "valid-token":
-      res.status(200).redirect("/home");
+      res.status(500).json({ error: "valid-token-already-present" });
       break;
     case "invalid-token":
       next();
       break;
     case "validation-error":
-      res.status(500).clearCookie("jwt").json({ error: "validation-error" });
+      res.status(500).json({ error: "validation-error" });
       break;
     default:
-      res.status(500).json({ error: "checkAuth-signup-error" });
+      console.error("LOG-IN ERROR: validateAuthSignupPost function error");
+      res.status(500).json({ error: "validateAuthSignupPost-error" });
   }
 }
-
-//******************GET******************/
-
-function serveLoginSignupBundle(req, res) {
-  const parentDir = path.join(__dirname, ".."),
-    bundlePath = path.join(
-      parentDir,
-      "react-bundles",
-      "log-in-sign-up",
-      "index.html"
-    );
-
-  //have to read the file, and then send the parsed index.html file
-  //to the user, this operation is normally async
-  try {
-    const data = fs.readFileSync(bundlePath);
-
-    res.setHeader("Content-Type", "text/html");
-    res.send(data);
-  } catch (error) {
-    console.error(error, error.stack);
-    res.status(500).send({ error: "bundle serving error" });
-  }
-}
-//serves the react bundle SPA for logging in and signing up for the service
-//the corresponding route will be used on the client sided routing in order to
-//redirect to the corresponding sign up page
-
-const signupGetMW = [checkAuthSignup, serveLoginSignupBundle];
-
-//*****************POST******************/
 
 async function trySignupAttempt(req, res, next) {
   const validationResult = validateEmailAndPassword(req);
 
-  if (validationResult.type === "error") {
-    console.error("sign-up-constraint-validation-failure");
+  if (validationResult === "error") {
+    console.error("SIGN-UP ERROR: constraint-validation-failure");
 
     res.status(500).json({
       error: "constraint-validation-failure",
     });
+    return;
   }
 
-  const { email } = req.body;
   let connection, queryResult, error;
 
   try {
+    const { email } = req.body;
+
     connection = await pool.connect();
     queryResult = await connection.query(
       "SELECT COUNT(*) FROM users WHERE email = $1",
       [email]
     );
+    //essentially just check if the supplied email
+    //is linked to an existing email and thus an existing user.
   } catch (err) {
     error = err;
   } finally {
@@ -98,35 +83,41 @@ async function trySignupAttempt(req, res, next) {
   }
 
   if (error) {
-    console.error("db-sign-up-connection-error", error);
+    console.error("SIGN UP ERROR: db-sign-up-connection-error", error);
 
     res.status(500).json({ error: "db-connection" });
+    return; //ensures the middleware stops here
   }
 
-  console.log("queryresult", queryResult);
-
+  //then check for whether the previous query returned a
+  //value greater than 0 which means there is an existing user
+  //with the supplied email
   if (queryResult[0].count > 0) {
-    console.error("sign-up-existing-user-error");
+    console.error("SIGN-UP ERROR: existing-user");
 
     res.status(400).json({ error: "existing-user" });
+    return; //ensures the middleware stops here
   }
 
   next();
 }
 
 async function addNewUser(req, res, next) {
-  const { email, password } = req.body;
-
   let connection, error;
 
   try {
-    const newUUID = uuid();
+    const { email, password } = req.body,
+      newUUID = uuid(); //new user primary key in DB schema
 
-    const hashedPW = bcrypt.hashSync(
+    //uses the bcrypt.hash method that was simplified using promisify
+    const hashedPW = await bcryptHash(
       password,
-      parseInt(process.env.BCRYPT_SR),
-      parseInt(process.env.BCRYPT_HK)
+      parseInt(process.env.BCRYPT_SR)
     );
+
+    if (!hashedPW) {
+      throw new Error("no-hashed-password");
+    }
 
     connection = await pool.connect();
     await connection.query(
@@ -142,9 +133,10 @@ async function addNewUser(req, res, next) {
   }
 
   if (error) {
-    console.log("sign-up-add-new-user-db-connection-error", error);
+    console.error("SIGN-UP ERROR: add-new-user-db-connection", error);
 
     res.status(500).json({ error: "db-connection" });
+    return;
   }
 
   next();
@@ -153,33 +145,34 @@ async function addNewUser(req, res, next) {
 async function authAndSendToHome(req, res) {
   const { email, password } = req.body;
   const authResult = await authUser(email, password);
-  //perform authentication on the users email and password
-  //either a token or an error of some kind will be returned
 
   if (authResult.type === "error") {
-    console.error("sign-up-auth-and-send-home-error");
+    console.error("SIGN-UP ERROR: auth-and-send-home");
 
     res.status(500).json({
       error: "user-authentication-failure",
       message: authResult.error,
     });
+    return;
   }
 
   if (authResult.type === "token") {
-    const { token } = authResult;
+    const { token } = authResult,
+      cookieOptions = {
+        secure: true, //the cookie is only sent over https
+        httpOnly: true, //prevents client side JS from accessing the cookie
+        sameSite: "Strict", //prevents requests from different origins from using the cookie
+      };
 
-    res.cookie("jwt", token, {
-      secure: true, //the cookie is only sent over https
-      httpOnly: true, //prevents client side JS from accessing the cookie
-      sameSite: "Strict", //prevents requests from different origins from using the cookie
-    }); //save the token in the cookies
-
-    res.status(200).redirect("/home"); //the token is stored in the users secured cookies, redirect to home
+    res
+      .status(200)
+      .cookie("jwt", token, cookieOptions) //the token is stored in the users secured cookies
+      .json({ redirect: "/home" });
   }
 }
 
 const signupPostMW = [
-  checkAuthSignup,
+  validateAuthSignupPost,
   trySignupAttempt,
   addNewUser,
   authAndSendToHome,

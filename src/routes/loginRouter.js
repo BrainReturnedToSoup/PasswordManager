@@ -1,20 +1,17 @@
 const router = require("express").Router();
 const cors = require("cors");
 
-//*************Routes*************/
-const { loginPageMW, loginPostMW } = require("../middleware/loginMW");
+const { loginGetMW, loginPostMW } = require("../middleware/loginMW");
 
-router.get("/", loginPageMW);
+//*************Routes*************/
+
+router.get("/", loginGetMW);
 
 const postOptions = {
   origin: [process.env.SERVER_ORIGIN + "/log-in"],
   methods: "POST",
-  credentials: true,
+  credentials: true, //for allowing cookies to be sent in the request
 };
-//CORS setup so that POST requests to the '/log-in' endpoint
-//have to originate from a source that contains the server origin as well
-//as the '/log-in' path in the url. This means that the request can only be made
-//from the login page
 
 router.post("/", cors(postOptions), loginPostMW);
 

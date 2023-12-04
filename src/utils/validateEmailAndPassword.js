@@ -13,7 +13,7 @@ function validateEmailAndPassword(req) {
 
   //only if the field exists in the form submission
 
-  if (req.body.confirmPassword) {
+  if ("confirmPassword" in req.body) {
     check("confirmPassword")
       .notEmpty()
       .isLength({ min: 12, max: 20 })
