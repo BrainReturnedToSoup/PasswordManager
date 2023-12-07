@@ -8,12 +8,11 @@ function initTokenSymmetricKey() {
 
   process.env.TOKEN_SYMMETRIC_KEY = symmetricKey;
 }
-
-initTokenSymmetricKey(); //initialize it as early as possible
+//initialize it as early as possible
 
 //*****************Hex-Generation*****************/
 
-function generateHex() {
+function generateHex_16B() {
   return crypto.randomBytes(16).toString("hex"); // 16-22 byte hex string
 }
 
@@ -24,16 +23,10 @@ class TokenSessionManager {
   #hexIV_to_JTI = new Map();
   #hexIV_to_setTimeout = new Map();
 
-  generateNewHexIV() {
-    const newIV = generateHex();
-
-    return newIV;
-  }
-
   //creates key value pair in the IV map, where the IV is the key, and the value is the JTI which is
   //set to null until defined using the updateExistingJTI method below. A setTimeout to delete the possible pairs
   //within both maps corresponding to the IV will be created as well.
-  createSession(firstJti, hexIV) {
+  createSession(startingJTI, hexIV) {
     try {
       if (this.#hexIV_to_JTI.has(hexIV)) {
         console.error(
@@ -43,7 +36,7 @@ class TokenSessionManager {
         return null;
       }
 
-      if (this.#JTI_to_hexIV.has(firstJti)) {
+      if (this.#JTI_to_hexIV.has(startingJTI)) {
         console.error(
           `Failed to create session, supplied JTI already exists within JTI_to_hexIV`
         );
@@ -51,8 +44,8 @@ class TokenSessionManager {
         return null;
       }
 
-      this.#hexIV_to_JTI.set(hexIV, firstJti);
-      this.#JTI_to_hexIV.set(firstJti, hexIV);
+      this.#hexIV_to_JTI.set(hexIV, startingJTI);
+      this.#JTI_to_hexIV.set(startingJTI, hexIV);
 
       const timeout = setTimeout(() => {
         const currentJTI = this.#hexIV_to_JTI.get(hexIV);
@@ -71,21 +64,13 @@ class TokenSessionManager {
   }
 
   //terminates an existing session manually, which is important for things such as logging out
-  terminateSession(jti) {
+  terminateSession(currentJTI) {
     try {
-      if (!this.#JTI_to_hexIV.has(jti)) {
+      const corresIV = this.#JTI_to_hexIV.get(currentJTI);
+
+      if (!corresIV) {
         console.error(
-          `Failed to create session, supplied JTI already exists within JTI_to_IVhex`
-        );
-
-        return null;
-      }
-
-      const corresIV = this.#JTI_to_hexIV.get(jti);
-
-      if (!this.#hexIV_to_JTI.has(corresIV)) {
-        console.error(
-          `Failed to terminate session, supplied IV does not exist within hexIV_to_JTI`
+          `Failed to terminate session, supplied JTI does not exist within JTI_to_hexIV`
         );
 
         return null;
@@ -96,8 +81,7 @@ class TokenSessionManager {
       //get rid of the automatic termination if you are manually terminating the session
 
       this.#hexIV_to_setTimeout.delete(corresIV);
-
-      this.#JTI_to_hexIV.delete(jti);
+      this.#JTI_to_hexIV.delete(currentJTI);
       this.#hexIV_to_JTI.delete(corresIV);
 
       return true;
@@ -109,20 +93,20 @@ class TokenSessionManager {
   //updates the JTI corresponding to the IV, which is done by looking up the key value in the IV
   //map, and either updating or creating the corresponding pair in the JTI map as well as updating the IV map
   //to reflect the relationship.
-  updateExistingJTI(newJti, hexIV) {
+  updateExistingJTI(oldJTI, newJTI) {
     try {
-      if (!this.#hexIV_to_JTI.has(hexIV)) {
+      const hexIV = this.#JTI_to_hexIV.get(oldJTI);
+
+      if (!hexIV) {
         console.error(
           `Failed to update existing JTI, supplied IV does not exist within hexIV_to_JTI `
         );
         return null;
       }
 
-      const oldJti = this.#hexIV_to_JTI.get(hexIV);
-
-      this.#JTI_to_hexIV.delete(oldJti);
-      this.#hexIV_to_JTI.set(hexIV, newJti);
-      this.#JTI_to_hexIV.set(newJti, hexIV);
+      this.#JTI_to_hexIV.delete(oldJTI);
+      this.#JTI_to_hexIV.set(newJTI, hexIV);
+      this.#hexIV_to_JTI.set(hexIV, newJTI);
 
       return true;
     } catch (error) {
@@ -131,16 +115,10 @@ class TokenSessionManager {
   }
 
   //retrieves the IV corresponding to the relationship stored in the JTI map
-  retrieveCorrespondingIV(oldJti) {
+  retrieveIV(oldJTI) {
     try {
-      if (!this.#JTI_to_hexIV.has(oldJti)) {
-        console.error(
-          `Failed to retrieve corresponding hexIV, supplied old JTI does not exist within JTI_to_hexIV`
-        );
-        return null;
-      }
-
-      return this.#JTI_to_hexIV.get(oldJti);
+      const retrievedIV = this.#JTI_to_hexIV.get(oldJTI);
+      return retrievedIV ? retrievedIV : null;
     } catch (error) {
       console.error(`retrieveCorrespondingIV: ${error}`);
     }
@@ -149,10 +127,10 @@ class TokenSessionManager {
 
 //******************AES256******************/
 
-function encryptData(sessionManager, uuidString) {
+function encryptData(uuidString) {
   try {
-    const newIVHex = sessionManager.generateNewHexIV(),
-      newIVBuffer = Buffer.from(newIVHex, "hex"),
+    const newHexIV = generateHex_16B(),
+      newIVBuffer = Buffer.from(newHexIV, "hex"),
       uuidBuffer = Buffer.from(uuidString, "utf-8");
     //buffers are a binary data format that is required for AES256
 
@@ -174,18 +152,18 @@ function encryptData(sessionManager, uuidString) {
     //representation of said binary data
     const encryptedString = encryptedData.toString("base64");
 
-    return { encryptedString, newIVHex };
+    return { encryptedString, newHexIV };
   } catch (error) {
     console.error(`encryptData: ${error}`);
   }
 }
 
 //basically just work backwards to decrypt
-function decryptData(sessionManager, encryptedString, jti) {
+function decryptData(sessionManager, encryptedString, JTI) {
   try {
     const encryptedData = Buffer.from(encryptedString, "base64");
 
-    const hexIV = sessionManager.retrieveCorrespondingIV(jti),
+    const hexIV = sessionManager.retrieveIV(JTI),
       IVBuffer = Buffer.from(hexIV, "hex");
 
     const decipher = crypto.createDecipheriv(
@@ -209,10 +187,9 @@ function decryptData(sessionManager, encryptedString, jti) {
 
 //**************Init-Session-Manager***************/
 
-const tokenSessionManagerInstance = new TokenSessionManager();
-
 module.exports = {
-  tokenSessionManager: tokenSessionManagerInstance,
+  TokenSessionManager,
   encryptData,
   decryptData,
+  initTokenSymmetricKey,
 };

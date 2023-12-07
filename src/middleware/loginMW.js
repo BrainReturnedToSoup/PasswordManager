@@ -1,5 +1,5 @@
 const validateEmailAndPassword = require("../utils/validateEmailAndPassword");
-const { authUser, checkAuth } = require("../utils/jwt");
+const { authUser, checkAuth } = require("../auth/jwt");
 const serveBundle = require("../utils/serveBundle");
 
 //******************GET******************/

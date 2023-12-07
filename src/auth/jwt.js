@@ -1,17 +1,20 @@
-const {
-  encryptData,
-  decryptData,
-  tokenSessionManager,
-} = require("./tokenCrypto.js");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const { v4: uuid } = require("uuid");
 
 const pool = require("../services/postgresql.js");
 
+const {
+  encryptData,
+  decryptData,
+  TokenSessionManager,
+} = require("./tokenCrypto.js");
+
+const tokenSessionManager = new TokenSessionManager();
+
+//for generating the expiration time stamp for any token that is created
+//define the number of seconds each token should be given
 function generateExpirationTime() {
-  //for generating the expiration time stamp for any token that is created
-  //define the number of seconds each token should be given
   return Math.floor(Date.now() / 1000) + parseInt(process.env.JWT_EXP_SECONDS);
 }
 
@@ -20,6 +23,7 @@ async function authUser(email, password) {
 
   try {
     connection = await pool.connect();
+
     const result = await connection.query(
       `SELECT * FROM users WHERE email = $1`,
       [email]
@@ -36,13 +40,13 @@ async function authUser(email, password) {
       throw new Error("invalid-credentials");
     }
 
-    user = result;
+    user = fetchedUser;
   } catch (err) {
     authError = err;
   } finally {
+    //always release the connection after attempting db actions
     if (connection && typeof connection.release === "function") {
       connection.release();
-      //always release the connection after attempting db actions
     }
   }
 
@@ -53,17 +57,17 @@ async function authUser(email, password) {
   if (user) {
     const { user_uuid } = user;
 
-    const firstJTI = uuid(),
-      { encryptedString, newIVHex } = encryptData(
+    const JTI = uuid(),
+      { encryptedString: encryptedUUID, newHexIV } = encryptData(
         tokenSessionManager,
         user_uuid
       );
-    //creating the first JTI that will be inserted into the starting JWT token, also encrypt
+    //creating the starting JTI that will be inserted into the starting JWT token, also encrypt
     //the user_uuid retrieved, which the encryptData function will generate a random IV for
     //the specific encryption operation, which is used across the same session even with renewed tokens
     //on the session
 
-    const newSession = tokenSessionManager.createSession(firstJTI, newIVHex);
+    const newSession = tokenSessionManager.createSession(JTI, newHexIV);
     //create a new session for the corresponding user, which this is managed via
     //an IV that stays the same for the encrypted user_uuid property data within the payload,
     //which the JTI is meant to be changed every time a successful response is made with
@@ -74,9 +78,9 @@ async function authUser(email, password) {
     }
 
     const payload = {
-      user_uuid: encryptedString,
+      user_uuid: encryptedUUID,
       exp: generateExpirationTime(),
-      jti: firstJTI,
+      jti: JTI,
     };
     //finally, take the encrypted UUID string and generated JTI and store them into the token payload
     //This way, this token can only be used once with the corresponding JTI, and the user_uuid is encrypted
@@ -89,17 +93,17 @@ async function authUser(email, password) {
   }
 }
 
-async function checkAuth(req) {
+async function checkAuth(cookies) {
   //used to turn the passport authentication into a utility function
   //rather than a middleware declaration
-  if (!req.cookies.jwt) {
+  if (!cookies.jwt) {
     return { type: "error", error: "no-token" };
   }
 
   let decodedToken, decodingError;
 
   try {
-    decodedToken = jwt.verify(req.cookies.jwt, process.env.JWT_SK);
+    decodedToken = jwt.verify(cookies.jwt, process.env.JWT_SK);
   } catch (err) {
     decodingError = err;
   }
@@ -159,7 +163,7 @@ function renewToken(decodedToken) {
 }
 
 async function validateDecodedToken(decodedToken) {
-  let connection, validationError;
+  let connection, error;
   //in order to handle connection release in a straightforward manner before
   //returning the values
 
@@ -184,7 +188,7 @@ async function validateDecodedToken(decodedToken) {
       throw new Error("user-not-found");
     }
   } catch (err) {
-    validationError = err;
+    error = err;
   } finally {
     if (connection && typeof connection.release === "function") {
       connection.release();
@@ -193,7 +197,7 @@ async function validateDecodedToken(decodedToken) {
 
   //basically only checking for errors in validation, and if there are none
   //that means the token passed validation
-  return { validationError };
+  return { error };
 }
 
 module.exports = { authUser, checkAuth, renewToken };
