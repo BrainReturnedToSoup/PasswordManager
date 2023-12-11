@@ -13,7 +13,8 @@ async function serveBundle(req, res) {
     res.setHeader("Content-Type", "text/html");
     res.send(data);
   } catch (error) {
-    console.error(error, error.stack);
+    console.error("SERVE BUNDLE ERROR: serveBundle catch block", error);
+
     res.status(500).send({ error: "bundle serving error" });
   }
 }

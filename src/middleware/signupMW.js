@@ -1,13 +1,16 @@
-const validateEmailAndPassword = require("../utils/validateEmailAndPassword");
-const { authUser, checkAuth } = require("../utils/jwt");
-const serveBundle = require("../utils/serveBundle");
-
-const { v4: uuid } = require("uuid");
 const { promisify } = require("util");
-const bcrypt = require("bcrypt"),
+
+const { v4: uuid } = require("uuid"),
+  bcrypt = require("bcrypt"),
   bcryptHash = promisify(bcrypt.hash);
 
 const pool = require("../services/postgresql");
+
+const auth = require("../utils/authProcessApis"),
+  validateEmailAndPassword = require("../utils/validateEmailAndPassword"),
+  serveBundle = require("../utils/serveBundle");
+
+const responseFlags = require("../enums/serverResponseFlags"); //constants
 
 //******************GET******************/
 
@@ -19,35 +22,38 @@ const signupGetMW = [serveBundle];
 //the signup form values
 
 async function validateAuthSignupPost(req, res, next) {
+  if (!req.cookies.jwt) {
+    //if the jwt cookie does not exist, then obviously not authenticated
+
+    next();
+    return;
+  }
+
+  //validate the token that is stored in the cookie, which involves checking
+  //session validity, cryptographic operations, and comparing data that exists within
+  //the token to what is within the DB
   let checkResult;
 
   try {
-    checkResult = await checkAuth(req);
+    checkResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw errors, will only return flags.
   } catch (error) {
     console.error(
-      "SIGN-UP ERROR: validateAuthSignupPost -> checkAuth",
+      "SIGN-UP ERROR: validateAuthSignupPost catch block",
       error,
       error.stack
     );
   }
 
-  switch (checkResult) {
-    case "no-token":
-      next();
-      break;
-    case "valid-token":
-      res.status(500).json({ error: "valid-token-already-present" });
-      break;
-    case "invalid-token":
-      next();
-      break;
-    case "validation-error":
-      res.status(500).json({ error: "validation-error" });
-      break;
-    default:
-      console.error("LOG-IN ERROR: validateAuthSignupPost function error");
-      res.status(500).json({ error: "validateAuthSignupPost-error" });
+  const { type } = checkResult; //can be either 'error' or 'token'
+
+  if (type === "error") {
+    console.error(`checkAuth-error`, checkResult.error);
+
+    next();
+    return;
   }
+
+  res.status(400).json({ error: responseFlags.ALREADY_AUTHED });
 }
 
 async function trySignupAttempt(req, res, next) {
@@ -57,18 +63,18 @@ async function trySignupAttempt(req, res, next) {
     console.error("SIGN-UP ERROR: constraint-validation-failure");
 
     res.status(500).json({
-      error: "constraint-validation-failure",
+      error: responseFlags.CONSTR_VALIDATION_FAILURE,
     });
     return;
   }
 
-  let connection, queryResult, error;
+  let connection, numOfUsers, error;
 
   try {
     const { email } = req.body;
 
     connection = await pool.connect();
-    queryResult = await connection.query(
+    numOfUsers = await connection.query(
       "SELECT COUNT(*) FROM users WHERE email = $1",
       [email]
     );
@@ -83,19 +89,19 @@ async function trySignupAttempt(req, res, next) {
   }
 
   if (error) {
-    console.error("SIGN UP ERROR: db-sign-up-connection-error", error);
+    console.error("SIGN UP ERROR: db-sign-up-error", error);
 
-    res.status(500).json({ error: "db-connection" });
+    res.status(500).json({ error: responseFlags.DB_ERROR });
     return; //ensures the middleware stops here
   }
 
   //then check for whether the previous query returned a
   //value greater than 0 which means there is an existing user
   //with the supplied email
-  if (queryResult[0].count > 0) {
+  if (numOfUsers[0].count > 0) {
     console.error("SIGN-UP ERROR: existing-user");
 
-    res.status(400).json({ error: "existing-user" });
+    res.status(400).json({ error: responseFlags.EXISTING_USER });
     return; //ensures the middleware stops here
   }
 
@@ -110,10 +116,7 @@ async function addNewUser(req, res, next) {
       newUUID = uuid(); //new user primary key in DB schema
 
     //uses the bcrypt.hash method that was simplified using promisify
-    const hashedPW = await bcryptHash(
-      password,
-      parseInt(process.env.BCRYPT_SR)
-    );
+    const hashedPW = await bcryptHash(password, process.env.BCRYPT_SR);
 
     if (!hashedPW) {
       throw new Error("no-hashed-password");
@@ -135,7 +138,7 @@ async function addNewUser(req, res, next) {
   if (error) {
     console.error("SIGN-UP ERROR: add-new-user-db-connection", error);
 
-    res.status(500).json({ error: "db-connection" });
+    res.status(500).json({ error: responseFlags.DB_ERROR });
     return;
   }
 
@@ -144,14 +147,24 @@ async function addNewUser(req, res, next) {
 
 async function authAndSendToHome(req, res) {
   const { email, password } = req.body;
-  const authResult = await authUser(email, password);
+
+  let authResult;
+
+  try {
+    authResult = await auth.authUser(email, password);
+  } catch (error) {
+    console.error(
+      "SIGN-UP ERROR: authAndSendToHome catch block",
+      error,
+      error.stack
+    );
+  }
 
   if (authResult.type === "error") {
     console.error("SIGN-UP ERROR: auth-and-send-home");
 
     res.status(500).json({
-      error: "user-authentication-failure",
-      message: authResult.error,
+      error: responseFlags.USER_AUTH_FAILURE,
     });
     return;
   }
@@ -167,7 +180,7 @@ async function authAndSendToHome(req, res) {
     res
       .status(200)
       .cookie("jwt", token, cookieOptions) //the token is stored in the users secured cookies
-      .json({ redirect: "/home" });
+      .json({ redirect: responseFlags.REDIRECT_HOME });
   }
 }
 

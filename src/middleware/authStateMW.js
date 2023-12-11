@@ -1,33 +1,37 @@
-const { checkAuth } = require("../utils/jwt");
+const auth = require("../utils/authProcessApis");
 
 //******************GET******************/
 
 async function checkCurrentAuthState(req, res) {
+  //if the jwt cookie does not exist, then obviously not authenticated
+  if (!req.cookies.jwt) {
+    res.status(200).json({ auth: false });
+    return;
+  }
+
+  //validate the token that is stored in the cookie, which involves checking
+  //session validity, cryptographic operations, and comparing data that exists within
+  //the token to what is within the DB
   let result;
 
   try {
-    result = await checkAuth(req);
+    result = await auth.checkAuth(req.cookies.jwt); //doesn't throw errors, will only return flags.
   } catch (error) {
-    console.error("auth validation login", error, error.stack);
+    console.error(
+      "AUTH STATE VALIDATION: checkCurrentAuthState catch block",
+      error,
+      error.stack
+    );
   }
 
-  switch (result) {
-    case "no-token":
-      res.status(200).json({ auth: false });
-      break;
-    case "valid-token":
-      res.status(500).json({ auth: true });
-      break;
-    case "invalid-token":
-      res.status(200).json({ auth: false });
-      break;
-    case "validation-error":
-      res.status(500).json({ auth: false, error: "validation-error" });
-      break;
-    default:
-      console.error("LOG-IN ERROR: validateAuthLoginPost function error");
-      res.status(500).json({ error: "validateAuthLoginPost-error" });
+  const { type } = result; //can be either 'error' or 'token'
+
+  if (type === "error") {
+    res.status(200).json({ auth: false });
+    return;
   }
+
+  res.status(200).json({ auth: true });
 }
 
 const authStateMW = [checkCurrentAuthState];

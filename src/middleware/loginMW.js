@@ -1,6 +1,8 @@
 const validateEmailAndPassword = require("../utils/validateEmailAndPassword");
-const { authUser, checkAuth } = require("../auth/jwt");
+const auth = require("../utils/authProcessApis");
 const serveBundle = require("../utils/serveBundle");
+
+const responseFlags = require("../enums/serverResponseFlags"); //constants
 
 //******************GET******************/
 
@@ -12,35 +14,37 @@ const loginGetMW = [serveBundle];
 //the login form values
 
 async function validateAuthLoginPost(req, res, next) {
-  let checkResult;
+  //if the jwt cookie does not exist, then obviously not authenticated
+  if (!req.cookies.jwt) {
+    next();
+    return;
+  }
+
+  //validate the token that is stored in the cookie, which involves checking
+  //session validity, cryptographic operations, and comparing data that exists within
+  //the token to what is within the DB
+  let authResult;
 
   try {
-    checkResult = await checkAuth(req);
+    authResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw errors, will only return flags.
   } catch (error) {
     console.error(
-      "LOG-IN ERROR: validateAuthLoginPost -> checkAuth",
+      "LOG-IN ERROR: validateAuthLoginPost catch block",
       error,
       error.stack
     );
   }
 
-  switch (checkResult) {
-    case "no-token":
-      next();
-      break;
-    case "valid-token":
-      res.status(500).json({ error: "valid-token-already-present" });
-      break;
-    case "invalid-token":
-      next();
-      break;
-    case "validation-error":
-      res.status(500).json({ error: "validation-error" });
-      break;
-    default:
-      console.error("LOG-IN ERROR: validateAuthLoginPost function error");
-      res.status(500).json({ error: "validateAuthLoginPost-error" });
+  const { type } = authResult; //can be either 'error' or 'token'
+
+  if (type === "error") {
+    console.error(`checkAuth-error`, authResult.error);
+
+    next();
+    return;
   }
+
+  res.status(400).json({ error: responseFlags.ALREADY_AUTHED });
 }
 
 async function tryLoginAttempt(req, res) {
@@ -49,7 +53,7 @@ async function tryLoginAttempt(req, res) {
   if (validationResult === "error") {
     console.error("LOG-IN ERROR: constraint-validation-failure");
 
-    res.status(400).json({ error: "constraint-validation-failure" });
+    res.status(400).json({ error: responseFlags.CONSTR_VALIDATION_FAILURE });
     return;
   }
 
@@ -58,7 +62,7 @@ async function tryLoginAttempt(req, res) {
   try {
     const { email, password } = req.body;
 
-    authResult = await authUser(email, password);
+    authResult = await auth.authUser(email, password);
     //perform authentication on the users email and password
     //either a token or an error of some kind will be returned
   } catch (error) {
@@ -68,8 +72,8 @@ async function tryLoginAttempt(req, res) {
   if (authResult.type === "error") {
     console.error("LOG-IN ERROR: user-auth-failure");
 
-    res.status(500).json({
-      error: "user-auth-failure",
+    res.status(400).json({
+      error: responseFlags.USER_AUTH_FAILURE,
     });
     return;
   } //for both actual errors and invalid login info errors
@@ -85,7 +89,7 @@ async function tryLoginAttempt(req, res) {
     res
       .cookie("jwt", token, cookieOptions)
       .status(200)
-      .json({ redirect: "/home" }); //the token is stored in the users secured cookies, redirect to home
+      .json({ redirect: responseFlags.REDIRECT_HOME }); //the token is stored in the users secured cookies, redirect to home
   }
 }
 

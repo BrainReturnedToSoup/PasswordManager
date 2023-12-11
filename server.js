@@ -1,12 +1,14 @@
 require("dotenv").config(); //initializes environment variables globally
-const path = require("path");
 
 const express = require("express");
-const app = express();
 
-const PORT = 8080;
+require("./src/utils/authProcessApis"); //initialize the auth child process instance in the very beginning
 
+const path = require("path");
 const cookieParser = require("cookie-parser");
+
+const app = express();
+const PORT = 8080;
 
 //***************Server-Config****************/
 

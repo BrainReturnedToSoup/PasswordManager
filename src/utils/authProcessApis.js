@@ -10,16 +10,18 @@ class Auth {
     this.#initProcessListener();
   }
 
+  //a single listener portal for the messages send back from the child process to
+  //use after processing some sort of action
   #initProcessListener() {
     this.process = fork("../auth/authProcess.js");
 
-    this.process.on("auth", (args) => {
-      this.#processMessage(args);
+    this.process.on("auth", (res) => {
+      this.#processMessage(res);
     });
   }
 
-  #processMessage(args) {
-    const { result, promiseID } = args,
+  #processMessage(res) {
+    const { result, promiseID } = res,
       { resolve } = this.promiseManager.get(promiseID);
 
     resolve(result);
@@ -29,46 +31,59 @@ class Auth {
     this.promiseTimeout.delete(promiseID);
   }
 
-  async #createPromise(promiseID) {
-    return new Promise((resolve, reject) => {
+  //creates a promise that the child process will eventually return a message
+  //based on a request to do a certain action. The individual promises are resolved
+  //because the request supplies a promise ID that the child process will send back
+  //in its message.
+  async #createResponsePromise() {
+    const promiseID = uuid();
+
+    const promise = new Promise((resolve, reject) => {
       this.promiseManager.set(promiseID, { resolve, reject });
 
       const promiseTimeout = setTimeout(() => {
         this.promiseManager.delete(promiseID);
 
-        reject(); //reject the promise before deleting the timeout instance
+        reject(`timeout`); //reject the promise before deleting the timeout instance
+
+        console.error(`IPC PROMISE TIMEOUT: a promise for an action to be taken by 
+        the Authentication child process timed out before receiving a response, promiseID: ${promiseID}`);
 
         this.promiseTimeout.delete(promiseID);
       }, 20000); //reject the promise after 20 seconds automatically
 
       this.promiseTimeout.set(promiseID, promiseTimeout);
     });
+
+    return { promise, promiseID };
+  }
+
+  #sendMessage(payload) {
+    this.process.send("auth", payload);
   }
 
   async authUser(email, password) {
-    const promiseID = uuid(),
-      promise = this.#createPromise(promiseID);
-
-    this.process.send("auth", { rule: "authUser", email, password, promiseID });
+    const { promise, promiseID } = this.#createResponsePromise();
+    this.#sendMessage({ rule: "authUser", email, promiseID, password });
 
     return promise;
   }
 
   async checkAuth(cookies) {
-    const promiseID = uuid(),
-      promise = this.#createPromise(promiseID);
-
-    this.process.send("auth", { rule: "checkAuth", cookies, promiseID });
+    const { promise, promiseID } = this.#createResponsePromise();
+    this.#sendMessage({ rule: "checkAuth", promiseID, cookies });
 
     return promise;
   }
 
   async renewToken(decodedToken) {
-    const promiseID = uuid(),
-      promise = this.#createPromise(promiseID);
-
-    this.process.send("auth", { rule: "renewToken", decodedToken, promiseID });
+    const { promise, promiseID } = this.#createResponsePromise();
+    this.#sendMessage("auth", { rule: "renewToken", promiseID, decodedToken });
 
     return promise;
   }
 }
+
+//create a single auth instance in the case of this server's needs
+const auth = new Auth();
+module.exports = auth;

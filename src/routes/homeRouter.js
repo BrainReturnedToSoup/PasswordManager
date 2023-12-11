@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const cors = require("cors");
 
-const { homeGetMW } = require("../middleware/home");
+const { homeGetMW } = require("../middleware/homeMW");
 
 //*************Routes*************/
 

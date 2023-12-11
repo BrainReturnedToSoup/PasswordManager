@@ -10,6 +10,9 @@ const {
   TokenSessionManager,
 } = require("./tokenCrypto.js");
 
+//for managing 'sessions' via established JTI-IV relationships. This is important
+//for remembering which IV is used for decrypting a specific token, even if the JTI
+//is constantly changing. The JTI is changed per successful request with a specific token.
 const tokenSessionManager = new TokenSessionManager();
 
 //for generating the expiration time stamp for any token that is created
@@ -21,6 +24,9 @@ function generateExpirationTime() {
 async function authUser(email, password) {
   let connection, user, authError;
 
+  //attempt to find the user associated with the supplied email first
+  //This try-catch is designed in this way in order to terminate the DB
+  //connection pool as soon as possible as per required for the auth logic
   try {
     connection = await pool.connect();
 
@@ -44,7 +50,7 @@ async function authUser(email, password) {
   } catch (err) {
     authError = err;
   } finally {
-    //always release the connection after attempting db actions
+    //always release the connection as soon as possible
     if (connection && typeof connection.release === "function") {
       connection.release();
     }
@@ -57,35 +63,30 @@ async function authUser(email, password) {
   if (user) {
     const { user_uuid } = user;
 
-    const JTI = uuid(),
+    const JTI = uuid(), //JTI for new token to be made
       { encryptedString: encryptedUUID, newHexIV } = encryptData(
         tokenSessionManager,
         user_uuid
       );
-    //creating the starting JTI that will be inserted into the starting JWT token, also encrypt
-    //the user_uuid retrieved, which the encryptData function will generate a random IV for
-    //the specific encryption operation, which is used across the same session even with renewed tokens
-    //on the session
 
-    const newSession = tokenSessionManager.createSession(JTI, newHexIV);
     //create a new session for the corresponding user, which this is managed via
     //an IV that stays the same for the encrypted user_uuid property data within the payload,
     //which the JTI is meant to be changed every time a successful response is made with
-    //a valid token
+    //a valid token.
+    const newSession = tokenSessionManager.createSession(JTI, newHexIV);
 
     if (!newSession.success) {
       return { type: "error", error: "session-creation-failure" };
     }
 
+    //encrypted using AES256, which the corresponding IV for this specific 'session' is
+    //saved and linked to the JTI that is saved in the token. This way, when a request is made
+    //with the token, it's easy to decrypt the encrypted user UUID, and make the necessary JTI updates
     const payload = {
       user_uuid: encryptedUUID,
       exp: generateExpirationTime(),
       jti: JTI,
     };
-    //finally, take the encrypted UUID string and generated JTI and store them into the token payload
-    //This way, this token can only be used once with the corresponding JTI, and the user_uuid is encrypted
-    //and can only be decrypted with the proper IV and JTI pair based on the session. The corresponding IV
-    //is retrieved in the session state and used for decryption using the JTI as the lookup key.
 
     const token = jwt.sign(payload, process.env.JWT_SK);
 
@@ -93,83 +94,45 @@ async function authUser(email, password) {
   }
 }
 
-async function checkAuth(cookies) {
-  //used to turn the passport authentication into a utility function
-  //rather than a middleware declaration
-  if (!cookies.jwt) {
-    return { type: "error", error: "no-token" };
-  }
+async function checkAuth(encodedToken) {
+  //receives a requests 'cookies' property, which is where the JWT token
+  //is managed from on the client side.
 
-  let decodedToken, decodingError;
+  let decodedToken, error;
 
+  //a valid token will not throw any errors, but instances of an invalid
+  //token, be it tampered or expired, will throw an error even if they are
+  //not 'true errors'
   try {
-    decodedToken = jwt.verify(cookies.jwt, process.env.JWT_SK);
+    decodedToken = encodedToken.verify(encodedToken, process.env.JWT_SK);
   } catch (err) {
-    decodingError = err;
+    error = err;
   }
 
-  if (decodingError) {
+  if (error) {
     return { type: "error", error: "invalid-token" };
   }
 
-  const { validationError } = await validateDecodedToken(decodedToken);
+  const validationResult = await validateDecodedToken(decodedToken);
 
-  if (validationError === "user-not-found") {
+  if (validationResult.error === "user-not-found") {
     return { type: "error", error: "invalid-token" };
   }
 
-  if (validationError) {
+  if (validationResult.error) {
     return { type: "error", error: "validation-error" };
   }
 
   return { type: "valid", decodedToken };
 }
 
-function renewToken(decodedToken) {
-  const { user_uuid: encryptedUserUUID, jti } = decodedToken;
-  //will use the decoded token otherwise returned from checkAuth mainly
-
-  const corresIV = tokenSessionManager.retrieveCorrespondingIV(jti);
-  //retrieve the corresponding IV relating to the decoded token, which should work
-  //because renewal will only occur after checkAuth, which validates for the existence of the IV
-
-  if (!corresIV) {
-    return { type: "error", error: "IV-retrieval-failure" };
-  }
-  //just in case due to some async execution order that the IV is in fact not present
-  //most likely due to the setTimeout deleting such automatically
-
-  const newJTI = uuid(),
-    payload = {
-      user_uuid: encryptedUserUUID,
-      exp: generateExpirationTime(),
-      jti: newJTI,
-    };
-
-  //create an entirely new token using the same encrypted user_uuid value,
-  //but supply a new JTI and expiry time to the token. The JTI is synced up with
-  //the corresponding IV after the creation, so that the new token can still be properly
-  //decrypted, thus simulating a 'session'
-  const newToken = jwt.sign(payload, process.env.JWT_SK),
-    updateResult = tokenSessionManager.updateExistingJTI(newJTI, corresIV);
-
-  if (!updateResult) {
-    return { type: "error", error: "JTI-update-failure" };
-  }
-  //just in case due to some async execution order that the IV is not present
-  //at this stage for the same reason as previously
-
-  return { type: "token", newToken };
-}
-
 async function validateDecodedToken(decodedToken) {
   let connection, error;
-  //in order to handle connection release in a straightforward manner before
-  //returning the values
 
   const { user_uuid: encryptedUserUUID, jti } = decodedToken;
 
   //decrypt the user UUID using the combination of the JTI stored on the token
+  //and the token session manager instance defined previously,
   //which then defines which IV to use to attempt the decryption
   const decryptedUserUUID = decryptData(
     tokenSessionManager,
@@ -179,6 +142,7 @@ async function validateDecodedToken(decodedToken) {
 
   try {
     connection = await pool.connect();
+
     const result = await connection.query(
       `SELECT * FROM users WHERE user_uuid = $1`,
       [decryptedUserUUID]
@@ -195,12 +159,41 @@ async function validateDecodedToken(decodedToken) {
     }
   }
 
-  //basically only checking for errors in validation, and if there are none
-  //that means the token passed validation
-  return { error };
+  //Only checking for errors in validation of the decrypted data itself, not the token,
+  //and if there are none that means the token passed validation
+  return { error, decryptedUserUUID };
+}
+
+//will use the decoded token otherwise returned from checkAuth mainly
+function renewToken(decodedToken) {
+  const { user_uuid: encryptedUserUUID, jti } = decodedToken;
+
+  //basically checking if the associated session for the token exists
+  //and thus still valid
+  if (!tokenSessionManager.hasJti(jti)) {
+    return { type: "error", error: "invalid-JTI" };
+  }
+
+  const jtiNew = uuid(),
+    payload = {
+      user_uuid: encryptedUserUUID,
+      exp: generateExpirationTime(),
+      jti: jtiNew,
+    };
+
+  //create an entirely new token using the same encrypted user_uuid value
+  //but with a new jti. This jti is updated in the session manager to the corres IV
+  const newToken = jwt.sign(payload, process.env.JWT_SK),
+    updateResult = tokenSessionManager.updateExistingJTI(jti, jtiNew);
+
+  if (!updateResult) {
+    return { type: "error", error: "JTI-update-failure" };
+  }
+  //just in case due to some async execution order that the IV is not present
+  //at this stage for the same reason as previously
+
+  return { type: "token", newToken };
 }
 
 module.exports = { authUser, checkAuth, renewToken };
-//export to be used as a helper function in the middleware
-//This way, middleware can behave based on the output of these functions
-//as opposed to using the functions as middleware themselves
+//will be used as utilities with middleware. Entire auth system will be within it's own child process

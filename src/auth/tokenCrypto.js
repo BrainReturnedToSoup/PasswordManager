@@ -18,6 +18,9 @@ function generateHex_16B() {
 
 //*****************IV-Management******************/
 
+//Managest JTI-IV relationships, as the JTI of a current valid token is not only necessary
+//for making sure that a token cannot be used more than once, but also to keep track of the
+//associated IV required to decrypt the user's UUID that is stored on the JWT token payload as well
 class TokenSessionManager {
   #JTI_to_hexIV = new Map();
   #hexIV_to_JTI = new Map();
@@ -80,8 +83,8 @@ class TokenSessionManager {
       clearTimeout(timeout);
       //get rid of the automatic termination if you are manually terminating the session
 
-      this.#hexIV_to_setTimeout.delete(corresIV);
       this.#JTI_to_hexIV.delete(currentJTI);
+      this.#hexIV_to_setTimeout.delete(corresIV);
       this.#hexIV_to_JTI.delete(corresIV);
 
       return true;
@@ -101,6 +104,7 @@ class TokenSessionManager {
         console.error(
           `Failed to update existing JTI, supplied IV does not exist within hexIV_to_JTI `
         );
+
         return null;
       }
 
@@ -114,14 +118,9 @@ class TokenSessionManager {
     }
   }
 
-  //retrieves the IV corresponding to the relationship stored in the JTI map
-  retrieveIV(oldJTI) {
-    try {
-      const retrievedIV = this.#JTI_to_hexIV.get(oldJTI);
-      return retrievedIV ? retrievedIV : null;
-    } catch (error) {
-      console.error(`retrieveCorrespondingIV: ${error}`);
-    }
+  //simple getter for checking if the current jti exists within the session manager
+  hasJti(jti) {
+    return this.#JTI_to_hexIV.has(jti);
   }
 }
 
