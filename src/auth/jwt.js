@@ -10,6 +10,8 @@ const {
   TokenSessionManager,
 } = require("./tokenCrypto.js");
 
+const { ERROR, RESPONSE } = require("../enums/jwtEnums.js");
+
 //for managing 'sessions' via established JTI-IV relationships. This is important
 //for remembering which IV is used for decrypting a specific token, even if the JTI
 //is constantly changing. The JTI is changed per successful request with a specific token.
@@ -36,14 +38,14 @@ async function authUser(email, password) {
     );
 
     if (result.length !== 1) {
-      throw new Error("invalid-credentials");
+      throw new Error(ERROR.INVALID_CREDS);
     }
 
     const fetchedUser = result[0],
       match = await bcrypt.compare(password, fetchedUser.pw);
 
     if (!match) {
-      throw new Error("invalid-credentials");
+      throw new Error(ERROR.INVALID_CREDS);
     }
 
     user = fetchedUser;
@@ -57,13 +59,13 @@ async function authUser(email, password) {
   }
 
   if (authError) {
-    return { type: "error", error: authError };
+    return { type: RESPONSE.TYPE_ERROR, error: authError };
   }
 
   if (user) {
     const { user_uuid } = user;
 
-    const JTI = uuid(), //JTI for new token to be made
+    const jtiStart = uuid(), //JTI for new token to be made
       { encryptedString: encryptedUUID, newHexIV } = encryptData(
         tokenSessionManager,
         user_uuid
@@ -73,10 +75,13 @@ async function authUser(email, password) {
     //an IV that stays the same for the encrypted user_uuid property data within the payload,
     //which the JTI is meant to be changed every time a successful response is made with
     //a valid token.
-    const newSession = tokenSessionManager.createSession(JTI, newHexIV);
+    const newSession = tokenSessionManager.createSession(jtiStart, newHexIV);
 
     if (!newSession.success) {
-      return { type: "error", error: "session-creation-failure" };
+      return {
+        type: RESPONSE.TYPE_ERROR,
+        error: ERROR.SESSION_CREATION_FAILURE,
+      };
     }
 
     //encrypted using AES256, which the corresponding IV for this specific 'session' is
@@ -85,12 +90,12 @@ async function authUser(email, password) {
     const payload = {
       user_uuid: encryptedUUID,
       exp: generateExpirationTime(),
-      jti: JTI,
+      jti: jtiStart,
     };
 
     const token = jwt.sign(payload, process.env.JWT_SK);
 
-    return { type: "token", token };
+    return { type: RESPONSE.TYPE_TOKEN, token };
   }
 }
 
@@ -104,26 +109,26 @@ async function checkAuth(encodedToken) {
   //token, be it tampered or expired, will throw an error even if they are
   //not 'true errors'
   try {
-    decodedToken = encodedToken.verify(encodedToken, process.env.JWT_SK);
+    decodedToken = jwt.verify(encodedToken, process.env.JWT_SK);
   } catch (err) {
     error = err;
   }
 
   if (error) {
-    return { type: "error", error: "invalid-token" };
+    return { type: RESPONSE.TYPE_ERROR, error: ERROR.INVALID_TOKEN };
   }
 
   const validationResult = await validateDecodedToken(decodedToken);
 
-  if (validationResult.error === "user-not-found") {
-    return { type: "error", error: "invalid-token" };
+  if (validationResult.error === ERROR.USER_NOT_FOUND) {
+    return { type: RESPONSE.TYPE_ERROR, error: ERROR.INVALID_TOKEN };
   }
 
   if (validationResult.error) {
-    return { type: "error", error: "validation-error" };
+    return { type: RESPONSE.TYPE_ERROR, error: ERROR.VALIDATION_ERROR };
   }
 
-  return { type: "valid", decodedToken };
+  return { type: RESPONSE.TYPE_VALID, decodedToken };
 }
 
 async function validateDecodedToken(decodedToken) {
@@ -149,7 +154,7 @@ async function validateDecodedToken(decodedToken) {
     );
 
     if (result.length !== 1) {
-      throw new Error("user-not-found");
+      throw new Error(ERROR.USER_NOT_FOUND);
     }
   } catch (err) {
     error = err;
@@ -171,7 +176,7 @@ function renewToken(decodedToken) {
   //basically checking if the associated session for the token exists
   //and thus still valid
   if (!tokenSessionManager.hasJti(jti)) {
-    return { type: "error", error: "invalid-JTI" };
+    return { type: RESPONSE.TYPE_ERROR, error: ERROR.INVALID_JTI };
   }
 
   const jtiNew = uuid(),
@@ -184,15 +189,15 @@ function renewToken(decodedToken) {
   //create an entirely new token using the same encrypted user_uuid value
   //but with a new jti. This jti is updated in the session manager to the corres IV
   const newToken = jwt.sign(payload, process.env.JWT_SK),
-    updateResult = tokenSessionManager.updateExistingJTI(jti, jtiNew);
+    updateResult = tokenSessionManager.updateExistingJti(jti, jtiNew);
 
   if (!updateResult) {
-    return { type: "error", error: "JTI-update-failure" };
+    return { type: RESPONSE.TYPE_ERROR, error: ERROR.JTI_UPDATE_FAILURE };
   }
   //just in case due to some async execution order that the IV is not present
   //at this stage for the same reason as previously
 
-  return { type: "token", newToken };
+  return { type: RESPONSE.TYPE_TOKEN, newToken };
 }
 
 module.exports = { authUser, checkAuth, renewToken };

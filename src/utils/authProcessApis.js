@@ -1,6 +1,8 @@
 const { fork } = require("child_process");
 const { v4: uuid } = require("uuid");
 
+const AUTH_ENUMS = require("../enums/authProcessEnums");
+
 class Auth {
   constructor() {
     this.process;
@@ -15,7 +17,7 @@ class Auth {
   #initProcessListener() {
     this.process = fork("../auth/authProcess.js");
 
-    this.process.on("auth", (res) => {
+    this.process.on(AUTH_ENUMS.MESSAGE, (res) => {
       this.#processMessage(res);
     });
   }
@@ -44,7 +46,7 @@ class Auth {
       const promiseTimeout = setTimeout(() => {
         this.promiseManager.delete(promiseID);
 
-        reject(`timeout`); //reject the promise before deleting the timeout instance
+        reject(AUTH_ENUMS.REJECT_TIMEOUT); //reject the promise before deleting the timeout instance
 
         console.error(`IPC PROMISE TIMEOUT: a promise for an action to be taken by 
         the Authentication child process timed out before receiving a response, promiseID: ${promiseID}`);
@@ -59,26 +61,35 @@ class Auth {
   }
 
   #sendMessage(payload) {
-    this.process.send("auth", payload);
+    this.process.send(AUTH_ENUMS.MESSAGE, payload);
   }
 
   async authUser(email, password) {
     const { promise, promiseID } = this.#createResponsePromise();
-    this.#sendMessage({ rule: "authUser", email, promiseID, password });
+    this.#sendMessage({
+      rule: AUTH_ENUMS.AUTH_USER,
+      email,
+      promiseID,
+      password,
+    });
 
     return promise;
   }
 
   async checkAuth(cookies) {
     const { promise, promiseID } = this.#createResponsePromise();
-    this.#sendMessage({ rule: "checkAuth", promiseID, cookies });
+    this.#sendMessage({ rule: AUTH_ENUMS.CHECK_AUTH, promiseID, cookies });
 
     return promise;
   }
 
   async renewToken(decodedToken) {
     const { promise, promiseID } = this.#createResponsePromise();
-    this.#sendMessage("auth", { rule: "renewToken", promiseID, decodedToken });
+    this.#sendMessage({
+      rule: AUTH_ENUMS.RENEW_TOKEN,
+      promiseID,
+      decodedToken,
+    });
 
     return promise;
   }

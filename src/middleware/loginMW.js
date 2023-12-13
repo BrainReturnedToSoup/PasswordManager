@@ -2,7 +2,8 @@ const validateEmailAndPassword = require("../utils/validateEmailAndPassword");
 const auth = require("../utils/authProcessApis");
 const serveBundle = require("../utils/serveBundle");
 
-const responseFlags = require("../enums/serverResponseFlags"); //constants
+const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums"),
+  { RESPONSE } = require("../enums/jwtEnums");
 
 //******************GET******************/
 
@@ -35,16 +36,16 @@ async function validateAuthLoginPost(req, res, next) {
     );
   }
 
-  const { type } = authResult; //can be either 'error' or 'token'
+  //can be either 'error' or 'token'
 
-  if (type === "error") {
+  if (authResult.type === RESPONSE.TYPE_ERROR) {
     console.error(`checkAuth-error`, authResult.error);
 
     next();
     return;
   }
 
-  res.status(400).json({ error: responseFlags.ALREADY_AUTHED });
+  res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
 }
 
 async function tryLoginAttempt(req, res) {
@@ -53,7 +54,9 @@ async function tryLoginAttempt(req, res) {
   if (validationResult === "error") {
     console.error("LOG-IN ERROR: constraint-validation-failure");
 
-    res.status(400).json({ error: responseFlags.CONSTR_VALIDATION_FAILURE });
+    res
+      .status(400)
+      .json({ error: OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE });
     return;
   }
 
@@ -69,16 +72,16 @@ async function tryLoginAttempt(req, res) {
     console.error(error, error.stack);
   }
 
-  if (authResult.type === "error") {
+  if (authResult.type === RESPONSE.TYPE_ERROR) {
     console.error("LOG-IN ERROR: user-auth-failure");
 
     res.status(400).json({
-      error: responseFlags.USER_AUTH_FAILURE,
+      error: OUTBOUND_RESPONSE.USER_AUTH_FAILURE,
     });
     return;
   } //for both actual errors and invalid login info errors
 
-  if (authResult.type === "token") {
+  if (authResult.type === RESPONSE.TYPE_TOKEN) {
     const { token } = authResult,
       cookieOptions = {
         secure: true, //the cookie is only sent over https
@@ -89,7 +92,7 @@ async function tryLoginAttempt(req, res) {
     res
       .cookie("jwt", token, cookieOptions)
       .status(200)
-      .json({ redirect: responseFlags.REDIRECT_HOME }); //the token is stored in the users secured cookies, redirect to home
+      .json({ redirect: OUTBOUND_RESPONSE.REDIRECT_HOME }); //the token is stored in the users secured cookies, redirect to home
   }
 }
 

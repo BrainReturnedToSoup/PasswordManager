@@ -1,16 +1,16 @@
-const { promisify } = require("util");
-
-const { v4: uuid } = require("uuid"),
+const { promisify } = require("util"),
+  { v4: uuid } = require("uuid"),
   bcrypt = require("bcrypt"),
   bcryptHash = promisify(bcrypt.hash);
-
-const pool = require("../services/postgresql");
 
 const auth = require("../utils/authProcessApis"),
   validateEmailAndPassword = require("../utils/validateEmailAndPassword"),
   serveBundle = require("../utils/serveBundle");
 
-const responseFlags = require("../enums/serverResponseFlags"); //constants
+const pool = require("../services/postgresql");
+
+const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums"),
+  { RESPONSE } = require("../enums/jwtEnums");
 
 //******************GET******************/
 
@@ -44,16 +44,15 @@ async function validateAuthSignupPost(req, res, next) {
     );
   }
 
-  const { type } = checkResult; //can be either 'error' or 'token'
-
-  if (type === "error") {
+  //can be either 'error' or 'token'
+  if (checkResult.type === RESPONSE.TYPE_ERROR) {
     console.error(`checkAuth-error`, checkResult.error);
 
     next();
     return;
   }
 
-  res.status(400).json({ error: responseFlags.ALREADY_AUTHED });
+  res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
 }
 
 async function trySignupAttempt(req, res, next) {
@@ -63,7 +62,7 @@ async function trySignupAttempt(req, res, next) {
     console.error("SIGN-UP ERROR: constraint-validation-failure");
 
     res.status(500).json({
-      error: responseFlags.CONSTR_VALIDATION_FAILURE,
+      error: OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE,
     });
     return;
   }
@@ -91,7 +90,7 @@ async function trySignupAttempt(req, res, next) {
   if (error) {
     console.error("SIGN UP ERROR: db-sign-up-error", error);
 
-    res.status(500).json({ error: responseFlags.DB_ERROR });
+    res.status(500).json({ error: OUTBOUND_RESPONSE.DB_ERROR });
     return; //ensures the middleware stops here
   }
 
@@ -101,7 +100,7 @@ async function trySignupAttempt(req, res, next) {
   if (numOfUsers[0].count > 0) {
     console.error("SIGN-UP ERROR: existing-user");
 
-    res.status(400).json({ error: responseFlags.EXISTING_USER });
+    res.status(400).json({ error: OUTBOUND_RESPONSE.EXISTING_USER });
     return; //ensures the middleware stops here
   }
 
@@ -138,7 +137,7 @@ async function addNewUser(req, res, next) {
   if (error) {
     console.error("SIGN-UP ERROR: add-new-user-db-connection", error);
 
-    res.status(500).json({ error: responseFlags.DB_ERROR });
+    res.status(500).json({ error: OUTBOUND_RESPONSE.DB_ERROR });
     return;
   }
 
@@ -160,16 +159,16 @@ async function authAndSendToHome(req, res) {
     );
   }
 
-  if (authResult.type === "error") {
+  if (authResult.type === RESPONSE.TYPE_ERROR) {
     console.error("SIGN-UP ERROR: auth-and-send-home");
 
     res.status(500).json({
-      error: responseFlags.USER_AUTH_FAILURE,
+      error: OUTBOUND_RESPONSE.USER_AUTH_FAILURE,
     });
     return;
   }
 
-  if (authResult.type === "token") {
+  if (authResult.type === RESPONSE.TYPE_TOKEN) {
     const { token } = authResult,
       cookieOptions = {
         secure: true, //the cookie is only sent over https
@@ -180,7 +179,7 @@ async function authAndSendToHome(req, res) {
     res
       .status(200)
       .cookie("jwt", token, cookieOptions) //the token is stored in the users secured cookies
-      .json({ redirect: responseFlags.REDIRECT_HOME });
+      .json({ redirect: OUTBOUND_RESPONSE.REDIRECT_HOME });
   }
 }
 

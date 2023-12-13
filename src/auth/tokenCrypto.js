@@ -1,10 +1,12 @@
 const crypto = require("crypto");
 
+const COMMON = require("../enums/tokenCryptoEnums");
+
 //***************Sym-Key-Generation***************/
 
 //creates a completely random symmetric key upon launching the server
 function initTokenSymmetricKey() {
-  const symmetricKey = crypto.randomBytes(32).toString("hex"); //for AES256;
+  const symmetricKey = crypto.randomBytes(32).toString(COMMON.HEX); //for AES256;
 
   process.env.TOKEN_SYMMETRIC_KEY = symmetricKey;
 }
@@ -13,7 +15,7 @@ function initTokenSymmetricKey() {
 //*****************Hex-Generation*****************/
 
 function generateHex_16B() {
-  return crypto.randomBytes(16).toString("hex"); // 16-22 byte hex string
+  return crypto.randomBytes(16).toString(COMMON.HEX); // 16-22 byte hex string
 }
 
 //*****************IV-Management******************/
@@ -29,7 +31,7 @@ class TokenSessionManager {
   //creates key value pair in the IV map, where the IV is the key, and the value is the JTI which is
   //set to null until defined using the updateExistingJTI method below. A setTimeout to delete the possible pairs
   //within both maps corresponding to the IV will be created as well.
-  createSession(startingJTI, hexIV) {
+  createSession(startingJti, hexIV) {
     try {
       if (this.#hexIV_to_JTI.has(hexIV)) {
         console.error(
@@ -39,7 +41,7 @@ class TokenSessionManager {
         return null;
       }
 
-      if (this.#JTI_to_hexIV.has(startingJTI)) {
+      if (this.#JTI_to_hexIV.has(startingJti)) {
         console.error(
           `Failed to create session, supplied JTI already exists within JTI_to_hexIV`
         );
@@ -47,8 +49,8 @@ class TokenSessionManager {
         return null;
       }
 
-      this.#hexIV_to_JTI.set(hexIV, startingJTI);
-      this.#JTI_to_hexIV.set(startingJTI, hexIV);
+      this.#hexIV_to_JTI.set(hexIV, startingJti);
+      this.#JTI_to_hexIV.set(startingJti, hexIV);
 
       const timeout = setTimeout(() => {
         const currentJTI = this.#hexIV_to_JTI.get(hexIV);
@@ -62,14 +64,16 @@ class TokenSessionManager {
 
       return true;
     } catch (error) {
-      console.error(`createSession: ${error}`);
+      console.error(
+        `TOKEN SESSION MANAGER ERROR: createSession error: ${error}`
+      );
     }
   }
 
   //terminates an existing session manually, which is important for things such as logging out
-  terminateSession(currentJTI) {
+  terminateSession(currentJti) {
     try {
-      const corresIV = this.#JTI_to_hexIV.get(currentJTI);
+      const corresIV = this.#JTI_to_hexIV.get(currentJti);
 
       if (!corresIV) {
         console.error(
@@ -83,7 +87,7 @@ class TokenSessionManager {
       clearTimeout(timeout);
       //get rid of the automatic termination if you are manually terminating the session
 
-      this.#JTI_to_hexIV.delete(currentJTI);
+      this.#JTI_to_hexIV.delete(currentJti);
       this.#hexIV_to_setTimeout.delete(corresIV);
       this.#hexIV_to_JTI.delete(corresIV);
 
@@ -96,9 +100,9 @@ class TokenSessionManager {
   //updates the JTI corresponding to the IV, which is done by looking up the key value in the IV
   //map, and either updating or creating the corresponding pair in the JTI map as well as updating the IV map
   //to reflect the relationship.
-  updateExistingJTI(oldJTI, newJTI) {
+  updateExistingJti(oldJti, newJti) {
     try {
-      const hexIV = this.#JTI_to_hexIV.get(oldJTI);
+      const hexIV = this.#JTI_to_hexIV.get(oldJti);
 
       if (!hexIV) {
         console.error(
@@ -108,9 +112,9 @@ class TokenSessionManager {
         return null;
       }
 
-      this.#JTI_to_hexIV.delete(oldJTI);
-      this.#JTI_to_hexIV.set(newJTI, hexIV);
-      this.#hexIV_to_JTI.set(hexIV, newJTI);
+      this.#JTI_to_hexIV.delete(oldJti);
+      this.#JTI_to_hexIV.set(newJti, hexIV);
+      this.#hexIV_to_JTI.set(hexIV, newJti);
 
       return true;
     } catch (error) {
@@ -129,12 +133,12 @@ class TokenSessionManager {
 function encryptData(uuidString) {
   try {
     const newHexIV = generateHex_16B(),
-      newIVBuffer = Buffer.from(newHexIV, "hex"),
-      uuidBuffer = Buffer.from(uuidString, "utf-8");
+      newIVBuffer = Buffer.from(newHexIV, COMMON.HEX),
+      uuidBuffer = Buffer.from(uuidString, COMMON.UTF_8);
     //buffers are a binary data format that is required for AES256
 
     const cipher = crypto.createCipheriv(
-      "aes-256-cbc",
+      COMMON.AES_256_CBC,
       process.env.TOKEN_SYMMETRIC_KEY, //this uses a string though
       newIVBuffer
     );
@@ -149,7 +153,7 @@ function encryptData(uuidString) {
     //the encrypted data is still in binary data format, so we can
     //convert this data to base64, which is essentially the string
     //representation of said binary data
-    const encryptedString = encryptedData.toString("base64");
+    const encryptedString = encryptedData.toString(COMMON.BASE_64);
 
     return { encryptedString, newHexIV };
   } catch (error) {
@@ -158,15 +162,15 @@ function encryptData(uuidString) {
 }
 
 //basically just work backwards to decrypt
-function decryptData(sessionManager, encryptedString, JTI) {
+function decryptData(sessionManager, encryptedString, jti) {
   try {
-    const encryptedData = Buffer.from(encryptedString, "base64");
+    const encryptedData = Buffer.from(encryptedString, COMMON.BASE_64);
 
-    const hexIV = sessionManager.retrieveIV(JTI),
-      IVBuffer = Buffer.from(hexIV, "hex");
+    const hexIV = sessionManager.retrieveIV(jti),
+      IVBuffer = Buffer.from(hexIV, COMMON.HEX);
 
     const decipher = crypto.createDecipheriv(
-      "aes-256-cbc",
+      COMMON.AES_256_CBC,
       process.env.TOKEN_SYMMETRIC_KEY,
       IVBuffer
     );
@@ -176,7 +180,7 @@ function decryptData(sessionManager, encryptedString, JTI) {
       decipher.final(),
     ]);
 
-    const decryptedUUIDString = decryptedData.toString("utf-8");
+    const decryptedUUIDString = decryptedData.toString(COMMON.UTF_8);
 
     return decryptedUUIDString;
   } catch (error) {
