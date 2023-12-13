@@ -9,8 +9,10 @@ const auth = require("../utils/authProcessApis"),
 
 const pool = require("../services/postgresql");
 
+//constants
 const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums"),
-  { RESPONSE } = require("../enums/jwtEnums");
+  { JWT_RESPONSE } = require("../enums/jwtEnums"),
+  VALIDATION_RESPONSE = require("../enums/validateEmailAndPassEnums");
 
 //******************GET******************/
 
@@ -45,7 +47,7 @@ async function validateAuthSignupPost(req, res, next) {
   }
 
   //can be either 'error' or 'token'
-  if (checkResult.type === RESPONSE.TYPE_ERROR) {
+  if (checkResult.type === JWT_RESPONSE.TYPE_ERROR) {
     console.error(`checkAuth-error`, checkResult.error);
 
     next();
@@ -58,7 +60,7 @@ async function validateAuthSignupPost(req, res, next) {
 async function trySignupAttempt(req, res, next) {
   const validationResult = validateEmailAndPassword(req);
 
-  if (validationResult === "error") {
+  if (validationResult === VALIDATION_RESPONSE.ERROR) {
     console.error("SIGN-UP ERROR: constraint-validation-failure");
 
     res.status(500).json({
@@ -159,7 +161,7 @@ async function authAndSendToHome(req, res) {
     );
   }
 
-  if (authResult.type === RESPONSE.TYPE_ERROR) {
+  if (authResult.type === JWT_RESPONSE.TYPE_ERROR) {
     console.error("SIGN-UP ERROR: auth-and-send-home");
 
     res.status(500).json({
@@ -168,7 +170,7 @@ async function authAndSendToHome(req, res) {
     return;
   }
 
-  if (authResult.type === RESPONSE.TYPE_TOKEN) {
+  if (authResult.type === JWT_RESPONSE.TYPE_TOKEN) {
     const { token } = authResult,
       cookieOptions = {
         secure: true, //the cookie is only sent over https

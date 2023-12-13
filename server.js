@@ -1,8 +1,7 @@
 require("dotenv").config(); //initializes environment variables globally
+require("./src/utils/authProcessApis"); //initialize the auth child process instance in the very beginning
 
 const express = require("express");
-
-require("./src/utils/authProcessApis"); //initialize the auth child process instance in the very beginning
 
 const path = require("path");
 const cookieParser = require("cookie-parser");

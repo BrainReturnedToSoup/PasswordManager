@@ -1,4 +1,4 @@
-const RESPONSE_FLAGS = Object.freeze({
+const SERVER_RESPONSE = Object.freeze({
   ALREADY_AUTHED: "already-authenticated",
   CONSTR_VALIDATION_FAILURE: "constraint-validation-failure",
   DB_ERROR: "db-error",
@@ -8,4 +8,4 @@ const RESPONSE_FLAGS = Object.freeze({
   REDIRECT_HOME: "/home",
 });
 
-module.exports = RESPONSE_FLAGS;
+module.exports = SERVER_RESPONSE;

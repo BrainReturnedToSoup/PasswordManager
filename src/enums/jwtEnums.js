@@ -1,4 +1,4 @@
-const ERROR = Object.freeze({
+const JWT_ERROR = Object.freeze({
   INVALID_CREDS: "invalid-credentials",
   INVALID_TOKEN: "invalid-token",
 
@@ -10,10 +10,10 @@ const ERROR = Object.freeze({
   JTI_UPDATE_FAILURE: "jti-update-failure",
 });
 
-const RESPONSE = Object.freeze({
+const JWT_RESPONSE = Object.freeze({
   TYPE_ERROR: "error",
   TYPE_TOKEN: "token",
   TYPE_VALID: "valid",
 });
 
-module.exports = { ERROR, RESPONSE };
+module.exports = { JWT_ERROR, JWT_RESPONSE };

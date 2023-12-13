@@ -3,6 +3,8 @@ const { v4: uuid } = require("uuid");
 
 const AUTH_ENUMS = require("../enums/authProcessEnums");
 
+const promiseTimeoutMs = 20000;
+
 class Auth {
   constructor() {
     this.process;
@@ -52,7 +54,7 @@ class Auth {
         the Authentication child process timed out before receiving a response, promiseID: ${promiseID}`);
 
         this.promiseTimeout.delete(promiseID);
-      }, 20000); //reject the promise after 20 seconds automatically
+      }, promiseTimeoutMs); //reject the promise after 20 seconds automatically
 
       this.promiseTimeout.set(promiseID, promiseTimeout);
     });

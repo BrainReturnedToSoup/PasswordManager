@@ -3,7 +3,8 @@ const auth = require("../utils/authProcessApis");
 const serveBundle = require("../utils/serveBundle");
 
 const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums"),
-  { RESPONSE } = require("../enums/jwtEnums");
+  { JWT_RESPONSE } = require("../enums/jwtEnums"),
+  VALIDATION_RESPONSE = require("../enums/validateEmailAndPassEnums");
 
 //******************GET******************/
 
@@ -38,7 +39,7 @@ async function validateAuthLoginPost(req, res, next) {
 
   //can be either 'error' or 'token'
 
-  if (authResult.type === RESPONSE.TYPE_ERROR) {
+  if (authResult.type === JWT_RESPONSE.TYPE_ERROR) {
     console.error(`checkAuth-error`, authResult.error);
 
     next();
@@ -51,7 +52,7 @@ async function validateAuthLoginPost(req, res, next) {
 async function tryLoginAttempt(req, res) {
   const validationResult = validateEmailAndPassword(req);
 
-  if (validationResult === "error") {
+  if (validationResult === VALIDATION_RESPONSE.ERROR) {
     console.error("LOG-IN ERROR: constraint-validation-failure");
 
     res
@@ -72,7 +73,7 @@ async function tryLoginAttempt(req, res) {
     console.error(error, error.stack);
   }
 
-  if (authResult.type === RESPONSE.TYPE_ERROR) {
+  if (authResult.type === JWT_RESPONSE.TYPE_ERROR) {
     console.error("LOG-IN ERROR: user-auth-failure");
 
     res.status(400).json({
@@ -81,7 +82,7 @@ async function tryLoginAttempt(req, res) {
     return;
   } //for both actual errors and invalid login info errors
 
-  if (authResult.type === RESPONSE.TYPE_TOKEN) {
+  if (authResult.type === JWT_RESPONSE.TYPE_TOKEN) {
     const { token } = authResult,
       cookieOptions = {
         secure: true, //the cookie is only sent over https

@@ -10,7 +10,7 @@ router.get("/", homeGetMW); //for the home page
 const postOptions = {
   origin: [process.env.SERVER_ORIGIN + "/home"],
   methods: "POST",
-  credentials: true,
+  credentials: true, //for allowing cookies to be sent in the request
 };
 
 router.post("/", cors(postOptions));

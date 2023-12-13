@@ -1,4 +1,5 @@
 const { check, validationResult } = require("express-validator");
+const VALIDATION_RESPONSE = require("../enums/validateEmailAndPassEnums");
 
 function validateEmailAndPassword(req) {
   check("email").notEmpty().isEmail().withMessage("email").run(req);
@@ -31,9 +32,9 @@ function validateEmailAndPassword(req) {
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
-    return "error";
+    return VALIDATION_RESPONSE.ERROR;
   } else {
-    return "valid";
+    return VALIDATION_RESPONSE.VALID;
   }
 }
 
