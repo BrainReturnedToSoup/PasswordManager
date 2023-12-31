@@ -46,9 +46,9 @@ class Auth {
       this.promiseManager.set(promiseID, { resolve, reject });
 
       const promiseTimeout = setTimeout(() => {
-        this.promiseManager.delete(promiseID);
-
         reject(AUTH_ENUMS.REJECT_TIMEOUT); //reject the promise before deleting the timeout instance
+
+        this.promiseManager.delete(promiseID);
 
         console.error(`IPC PROMISE TIMEOUT: a promise for an action to be taken by 
         the Authentication child process timed out before receiving a response, promiseID: ${promiseID}`);
@@ -63,7 +63,7 @@ class Auth {
   }
 
   #sendMessage(payload) {
-    this.process.send(AUTH_ENUMS.MESSAGE, payload);
+    this.process.send(payload);
   }
 
   async authUser(email, password) {

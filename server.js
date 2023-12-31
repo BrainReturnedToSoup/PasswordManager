@@ -6,8 +6,8 @@ const express = require("express");
 const path = require("path");
 const cookieParser = require("cookie-parser");
 
-const app = express();
-const PORT = 8080;
+const app = express(),
+  PORT = 8080;
 
 //***************Server-Config****************/
 
@@ -16,8 +16,14 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 //enables form submissions to be accessible as properties in the req.body
 
-app.use(express.static(path.join(__dirname, "src", "react-bundle")));
-//for serving static assets such as scripts and stylesheets in the bundle head
+app.use(express.static(path.join(__dirname, "src", "client-bundle"))); //index.html FILE
+
+//**************JS-Client-Modules*************/
+
+app.use(express.static(path.join(__dirname, "immutable", "chunks")));
+app.use(express.static(path.join(__dirname, "immutable", "entry")));
+app.use(express.static(path.join(__dirname, "immutable", "nodes")));
+//for serving static assets such as scripts and stylesheets in the html file head
 
 //******************Routes********************/
 
