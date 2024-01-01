@@ -21,11 +21,16 @@ const tokenSessionManager = new TokenSessionManager();
 //for generating the expiration time stamp for any token that is created
 //define the number of seconds each token should be given
 function generateExpirationTime() {
-  return Math.floor(Date.now() / 1000) + parseInt(process.env.JWT_EXP_SECONDS);
+  const oneSecondFromMS = 1000;
+
+  return (
+    Math.floor(Date.now() / oneSecondFromMS) +
+    parseInt(process.env.JWT_EXP_SECONDS)
+  );
 }
 
 async function authUser(email, password) {
-  let connection, user, authError;
+  let connection, user, error;
 
   //attempt to find the user associated with the supplied email first
   //This try-catch is designed in this way in order to terminate the DB
@@ -51,7 +56,7 @@ async function authUser(email, password) {
 
     user = fetchedUser;
   } catch (err) {
-    authError = err;
+    error = err;
   } finally {
     //always release the connection as soon as possible
     if (connection && typeof connection.release === "function") {
@@ -59,8 +64,8 @@ async function authUser(email, password) {
     }
   }
 
-  if (authError) {
-    return { type: JWT_RESPONSE_TYPE.ERROR, error: authError };
+  if (error) {
+    return { type: JWT_RESPONSE_TYPE.ERROR, error: error };
   }
 
   if (user) {
@@ -118,30 +123,34 @@ async function checkAuth(encodedToken) {
 
   const validationResult = await validateDecodedToken(decodedToken);
 
-  if (validationResult.error === JWT_ERROR.USER_NOT_FOUND) {
-    return { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.INVALID_TOKEN };
-  }
+  if (validationResult.type === JWT_RESPONSE_TYPE.ERROR) {
+    const { error } = validationResult;
 
-  if (validationResult.error) {
-    return { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.VALIDATION_ERROR };
+    return error === JWT_ERROR.USER_NOT_FOUND
+      ? { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.INVALID_TOKEN }
+      : { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.VALIDATION_ERROR };
   }
 
   return { type: JWT_RESPONSE_TYPE.VALID, decodedToken };
 }
 
+//decrypt the user UUID using the combination of the JTI stored on the token
+//and the token session manager instance defined previously,
+//which then defines which IV to use to attempt the decryption
 async function validateDecodedToken(decodedToken) {
-  let connection, error;
-
   const { user_uuid: encryptedUserUUID, jti } = decodedToken;
 
-  //decrypt the user UUID using the combination of the JTI stored on the token
-  //and the token session manager instance defined previously,
-  //which then defines which IV to use to attempt the decryption
+  if (!tokenSessionManager.hasJti(jti)) {
+    return { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.INVALID_JTI };
+  }
+
   const decryptedUserUUID = decryptData(
     tokenSessionManager,
     encryptedUserUUID,
     jti
   );
+
+  let connection, error;
 
   try {
     connection = await pool.connect();
@@ -162,9 +171,11 @@ async function validateDecodedToken(decodedToken) {
     }
   }
 
-  //Only checking for errors in validation of the decrypted data itself, not the token,
-  //and if there are none that means the token passed validation
-  return { error, decryptedUserUUID };
+  if (error) {
+    return { type: JWT_RESPONSE_TYPE.ERROR, error };
+  }
+
+  return { type: JWT_RESPONSE_TYPE.VALID };
 }
 
 //will use the decoded token otherwise returned from checkAuth mainly

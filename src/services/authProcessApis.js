@@ -21,26 +21,22 @@ class Auth {
   #createResponsePromise() {
     const promiseID = uuid();
 
-    console.log("main to child-process promise created", promiseID);
-
     const promise = new Promise((resolve, reject) => {
       this.promiseManager.set(promiseID, { resolve, reject });
 
       const promiseTimeout = setTimeout(() => {
         reject(AUTH_ENUMS.REJECT_TIMEOUT); //reject the promise before deleting the timeout instance
-
         this.promiseManager.delete(promiseID);
+        this.promiseTimeout.delete(promiseID);
 
         console.error(`IPC PROMISE TIMEOUT: a promise for an action to be taken by 
         the Authentication child process timed out before receiving a response, promiseID: ${promiseID}`);
-      }, promiseTimeoutMs).then(() => {
-        this.promiseTimeout.delete(promiseID);
-      });
-
-      //reject the promise after 20 seconds automatically
+      }, promiseTimeoutMs); //reject the promise after 20 seconds automatically
 
       this.promiseTimeout.set(promiseID, promiseTimeout);
     });
+
+    console.log("main to child-process promise created", promiseID);
 
     return { promise, promiseID };
   }
@@ -49,8 +45,7 @@ class Auth {
     const { result, promiseID, error } = res,
       { resolve, reject } = this.promiseManager.get(promiseID);
 
-    error ? reject(error) : resolve(result);
-    //all responses from the child process counts as a success, even if the message is an error
+    error ? reject(error) : resolve(result); //all responses from the child process counts as a success, even if the message is an error
 
     this.promiseManager.delete(promiseID);
     this.promiseTimeout.delete(promiseID);

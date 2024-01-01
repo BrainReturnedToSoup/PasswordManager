@@ -47,9 +47,9 @@ class TokenSessionManager {
 
         this.#JTI_to_hexIV.delete(currentJTI);
         this.#hexIV_to_JTI.delete(hexIV);
-      }, parseInt(process.env.JWT_EXP_SECONDS) * 1000).then(() => {
+
         this.#hexIV_to_setTimeout.delete(hexIV); //making sure the right chain of execution for deleting the resolved timeout
-      });
+      }, parseInt(process.env.JWT_EXP_SECONDS) * 1000);
 
       this.#hexIV_to_setTimeout.set(hexIV, timeout);
 
@@ -113,6 +113,10 @@ class TokenSessionManager {
     }
   }
 
+  retrieveIV(jti) {
+    return this.#JTI_to_hexIV.get(jti);
+  }
+
   //simple getter for checking if the current jti exists within the session manager
   hasJti(jti) {
     return this.#JTI_to_hexIV.has(jti);
@@ -125,12 +129,13 @@ function encryptData(uuidString) {
   try {
     const newHexIV = generateHex_16B(),
       newIVBuffer = Buffer.from(newHexIV, COMMON.HEX),
+      symBuffer = Buffer.from(process.env.TOKEN_SYMMETRIC_KEY, COMMON.HEX),
       uuidBuffer = Buffer.from(uuidString, COMMON.UTF_8);
     //buffers are a binary data format that is required for AES256
 
     const cipher = crypto.createCipheriv(
       COMMON.AES_256_CBC,
-      process.env.TOKEN_SYMMETRIC_KEY, //this uses a string though
+      symBuffer, //this uses a string though
       newIVBuffer
     );
 
@@ -153,16 +158,16 @@ function encryptData(uuidString) {
 }
 
 //basically just work backwards to decrypt
-function decryptData(sessionManager, encryptedString, jti) {
+function decryptData(sessionManager, encryptedUUIDString, jti) {
   try {
-    const encryptedData = Buffer.from(encryptedString, COMMON.BASE_64);
-
     const hexIV = sessionManager.retrieveIV(jti),
-      IVBuffer = Buffer.from(hexIV, COMMON.HEX);
+      IVBuffer = Buffer.from(hexIV, COMMON.HEX),
+      symBuffer = Buffer.from(process.env.TOKEN_SYMMETRIC_KEY, COMMON.HEX),
+      encryptedData = Buffer.from(encryptedUUIDString, COMMON.BASE_64);
 
     const decipher = crypto.createDecipheriv(
       COMMON.AES_256_CBC,
-      process.env.TOKEN_SYMMETRIC_KEY,
+      symBuffer,
       IVBuffer
     );
 
@@ -185,5 +190,4 @@ module.exports = {
   TokenSessionManager,
   encryptData,
   decryptData,
-  initTokenSymmetricKey,
 };
