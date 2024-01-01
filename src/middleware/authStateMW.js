@@ -24,6 +24,9 @@ async function scanAuth(req, res) {
       error,
       error.stack
     );
+
+    res.status(200).json({ auth: false });
+    return;
   }
 
   const { type } = authResult; //can be either 'error' or 'token'

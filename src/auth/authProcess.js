@@ -27,7 +27,7 @@ async function authUserWrapper(args) {
 }
 
 async function checkAuthWrapper(args) {
-  const { cookies } = args;
+  const { cookies, promiseID } = args;
 
   let result, error;
 
@@ -41,7 +41,7 @@ async function checkAuthWrapper(args) {
 }
 
 async function renewTokenWrapper(args) {
-  const { decodedToken } = args;
+  const { decodedToken, promiseID } = args;
 
   let result, error;
 

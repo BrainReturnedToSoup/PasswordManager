@@ -47,6 +47,9 @@ class Auth {
 
     error ? reject(error) : resolve(result); //all responses from the child process counts as a success, even if the message is an error
 
+    const corresTimeout = this.promiseTimeout.get(promiseID);
+    clearTimeout(corresTimeout);
+
     this.promiseManager.delete(promiseID);
     this.promiseTimeout.delete(promiseID);
 

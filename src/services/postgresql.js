@@ -43,6 +43,7 @@ const config = {
   database: process.env.POSTGRESQL_DB,
   password: process.env.POSTGRESQL_PW,
   port: process.env.POSTGRESQL_PORT,
+  max: 400,
 };
 
 const pool = pgp(config);
