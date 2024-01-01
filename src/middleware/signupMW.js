@@ -111,7 +111,10 @@ async function addNewUser(req, res, next) {
       newUUID = uuid(); //new user primary key in DB schema
 
     //uses the bcrypt.hash method that was simplified using promisify
-    const hashedPW = await bcryptHash(password, process.env.BCRYPT_SR);
+    const hashedPW = await bcryptHash(
+      password,
+      parseInt(process.env.BCRYPT_SR)
+    );
 
     connection = await pool.connect();
     await connection.query(
@@ -145,14 +148,16 @@ async function applyNewAuthStatus(req, res) {
     authResult = await auth.authUser(email, password);
   } catch (error) {
     console.error(
-      "SIGN-UP ERROR: authAndSendToHome catch block",
+      "SIGN-UP ERROR: applyNewAuthStatus catch block",
       error,
       error.stack
     );
   }
 
+  console.log("applyNewAuthStatus - authResult", authResult);
+
   if (authResult.type === JWT_RESPONSE_TYPE.ERROR) {
-    console.error("SIGN-UP ERROR: auth-and-send-home");
+    console.error("SIGN-UP ERROR: apply-new-auth-status");
 
     res.status(500).json({
       error: OUTBOUND_RESPONSE.USER_AUTH_FAILURE,

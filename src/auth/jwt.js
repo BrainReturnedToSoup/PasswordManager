@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+
 const { v4: uuid } = require("uuid");
 
 const pool = require("../services/postgresql.js");
@@ -65,19 +66,16 @@ async function authUser(email, password) {
   if (user) {
     const { user_uuid } = user;
 
-    const jtiStart = uuid(), //JTI for new token to be made
-      { encryptedString: encryptedUUID, newHexIV } = encryptData(
-        tokenSessionManager,
-        user_uuid
-      );
+    const startingJti = uuid(), //JTI for new token to be made
+      { encryptedString: encryptedUUID, newHexIV } = encryptData(user_uuid);
 
     //create a new session for the corresponding user, which this is managed via
     //an IV that stays the same for the encrypted user_uuid property data within the payload,
     //which the JTI is meant to be changed every time a successful response is made with
     //a valid token.
-    const newSession = tokenSessionManager.createSession(jtiStart, newHexIV);
+    const newSession = tokenSessionManager.createSession(startingJti, newHexIV);
 
-    if (!newSession.success) {
+    if (!newSession) {
       return {
         type: JWT_RESPONSE_TYPE.ERROR,
         error: JWT_ERROR.SESSION_CREATION_FAILURE,
@@ -90,7 +88,7 @@ async function authUser(email, password) {
     const payload = {
       user_uuid: encryptedUUID,
       exp: generateExpirationTime(),
-      jti: jtiStart,
+      jti: startingJti,
     };
 
     const token = jwt.sign(payload, process.env.JWT_SK);

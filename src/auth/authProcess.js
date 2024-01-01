@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const { authUser, checkAuth, renewToken } = require("./jwt");
 
 const AUTH_ENUMS = require("../enums/authProcessEnums");
@@ -11,33 +13,74 @@ const AUTH_ENUMS = require("../enums/authProcessEnums");
 //the promiseID is returned in order to link each message to a promise that was made on the main process, and thus
 //fulfill that promise as usual using a hash map. Overall, this ensures that the main process can interact with
 //the child process just like any other asynchronous task.
-process.on(AUTH_ENUMS.MESSAGE, async (args) => {
+async function authUserWrapper(args) {
+  const { email, password, promiseID } = args;
+  let result, error;
+
+  try {
+    result = await authUser(email, password);
+  } catch (err) {
+    error = err;
+  }
+
+  process.send({ result, promiseID, error });
+}
+
+async function checkAuthWrapper(args) {
+  const { cookies } = args;
+
+  let result, error;
+
+  try {
+    result = await checkAuth(cookies);
+  } catch (err) {
+    error = err;
+  }
+
+  process.send({ result, promiseID, error });
+}
+
+async function renewTokenWrapper(args) {
+  const { decodedToken } = args;
+
+  let result, error;
+
+  try {
+    result = renewToken(decodedToken);
+  } catch (err) {
+    error = err;
+  }
+
+  process.send({ result, promiseID, error });
+}
+
+//*****************EVENT-LISTENER********************* */
+
+//the message parameter for the process is not customizable, there are only
+//a set of allowed values for the message value.
+
+process.on(AUTH_ENUMS.MESSAGE, (args) => {
+  console.log("child process received message", args);
+
   const { rule } = args;
-  let result;
 
   switch (rule) {
     case AUTH_ENUMS.AUTH_USER:
-      const { email, password, promiseID } = args;
-      result = await authUser(email, password);
-      process.send(AUTH_ENUMS.MESSAGE, { result, promiseID });
+      authUserWrapper(args);
       break;
 
     case AUTH_ENUMS.CHECK_AUTH:
-      const { cookies } = args;
-      result = await checkAuth(cookies);
-      process.send(AUTH_ENUMS.MESSAGE, { result, promiseID });
+      checkAuthWrapper(args);
       break;
 
     case AUTH_ENUMS.RENEW_TOKEN:
-      const { decodedToken } = args;
-      result = renewToken(decodedToken);
-      process.send(AUTH_ENUMS.MESSAGE, { result, promiseID });
+      renewTokenWrapper(args);
       break;
 
     default:
       console.error(
         `Child Process - Auth: Received invalid rule for as argument, received ${rule}`
       );
-      process.send(AUTH_ENUMS.MESSAGE, { result: "invalid-rule" });
+      process.send({ error: "invalid-rule" });
   }
 });

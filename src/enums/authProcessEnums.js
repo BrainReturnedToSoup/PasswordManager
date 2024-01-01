@@ -1,6 +1,6 @@
 const AUTH_ENUMS = Object.freeze({
-  MESSAGE: "auth",
-  REJECT_TIMEOUT: "timeout",
+  MESSAGE: "message",
+  REJECT_TIMEOUT: "auth-child-process-promise-timed-out",
 
   AUTH_USER: "authUser",
   CHECK_AUTH: "checkAuth",

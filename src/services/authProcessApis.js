@@ -9,43 +9,19 @@ const promiseTimeoutMs = 20000;
 
 class Auth {
   constructor() {
-    this.process;
+    this.childProcess;
     this.promiseManager = new Map();
     this.promiseTimeout = new Map();
-
-    this.#initProcessListener();
-  }
-
-  //a single listener portal for the messages send back from the child process to
-  //use after processing some sort of action
-  #initProcessListener() {
-    const parentDir = path.join(__dirname, ".."),
-      modulePath = path.join(parentDir, "auth", "authProcess.js");
-
-    this.process = fork(modulePath);
-
-    this.process.on(AUTH_ENUMS.MESSAGE, (res) => {
-      this.#processMessage(res);
-    });
-  }
-
-  #processMessage(res) {
-    const { result, promiseID } = res,
-      { resolve } = this.promiseManager.get(promiseID);
-
-    resolve(result);
-    //all responses from the child process counts as a success, even if the message is an error
-
-    this.promiseManager.delete(promiseID);
-    this.promiseTimeout.delete(promiseID);
   }
 
   //creates a promise that the child process will eventually return a message
   //based on a request to do a certain action. The individual promises are resolved
   //because the request supplies a promise ID that the child process will send back
   //in its message.
-  async #createResponsePromise() {
+  #createResponsePromise() {
     const promiseID = uuid();
+
+    console.log("main to child-process promise created", promiseID);
 
     const promise = new Promise((resolve, reject) => {
       this.promiseManager.set(promiseID, { resolve, reject });
@@ -57,9 +33,11 @@ class Auth {
 
         console.error(`IPC PROMISE TIMEOUT: a promise for an action to be taken by 
         the Authentication child process timed out before receiving a response, promiseID: ${promiseID}`);
-
+      }, promiseTimeoutMs).then(() => {
         this.promiseTimeout.delete(promiseID);
-      }, promiseTimeoutMs); //reject the promise after 20 seconds automatically
+      });
+
+      //reject the promise after 20 seconds automatically
 
       this.promiseTimeout.set(promiseID, promiseTimeout);
     });
@@ -67,11 +45,43 @@ class Auth {
     return { promise, promiseID };
   }
 
-  #sendMessage(payload) {
-    this.process.send(payload);
+  #processMessage(res) {
+    const { result, promiseID, error } = res,
+      { resolve, reject } = this.promiseManager.get(promiseID);
+
+    error ? reject(error) : resolve(result);
+    //all responses from the child process counts as a success, even if the message is an error
+
+    this.promiseManager.delete(promiseID);
+    this.promiseTimeout.delete(promiseID);
+
+    console.log("main to child-process promise resolved", promiseID);
   }
 
-  async authUser(email, password) {
+  #sendMessage(payload) {
+    try {
+      this.childProcess.send(payload);
+    } catch (error) {
+      console.error("Auth child process messaging failure", error, error.stack);
+    }
+  }
+
+  //a single listener portal for the messages send back from the child process to
+  //use after processing some sort of action
+  initProcessListener() {
+    if (!this.childProcess) {
+      const parentDir = path.join(__dirname, ".."),
+        modulePath = path.join(parentDir, "auth", "authProcess.js");
+
+      this.childProcess = fork(modulePath, { execArgv: ["--inspect"] }); //forking is async
+
+      this.childProcess.on(AUTH_ENUMS.MESSAGE, (res) => {
+        this.#processMessage(res);
+      });
+    }
+  }
+
+  authUser(email, password) {
     const { promise, promiseID } = this.#createResponsePromise();
     this.#sendMessage({
       rule: AUTH_ENUMS.AUTH_USER,
@@ -83,14 +93,14 @@ class Auth {
     return promise;
   }
 
-  async checkAuth(cookies) {
+  checkAuth(cookies) {
     const { promise, promiseID } = this.#createResponsePromise();
     this.#sendMessage({ rule: AUTH_ENUMS.CHECK_AUTH, promiseID, cookies });
 
     return promise;
   }
 
-  async renewToken(decodedToken) {
+  renewToken(decodedToken) {
     const { promise, promiseID } = this.#createResponsePromise();
     this.#sendMessage({
       rule: AUTH_ENUMS.RENEW_TOKEN,
@@ -104,4 +114,6 @@ class Auth {
 
 //create a single auth instance in the case of this server's needs
 const auth = new Auth();
+auth.initProcessListener();
+
 module.exports = auth;

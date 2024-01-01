@@ -2,20 +2,10 @@ const crypto = require("crypto");
 
 const COMMON = require("../enums/tokenCryptoEnums");
 
-//***************Sym-Key-Generation***************/
-
-//creates a completely random symmetric key upon launching the server
-function initTokenSymmetricKey() {
-  const symmetricKey = crypto.randomBytes(32).toString(COMMON.HEX); //for AES256;
-
-  process.env.TOKEN_SYMMETRIC_KEY = symmetricKey;
-}
-//initialize it as early as possible
-
 //*****************Hex-Generation*****************/
 
 function generateHex_16B() {
-  return crypto.randomBytes(16).toString(COMMON.HEX); // 16-22 byte hex string
+  return crypto.randomBytes(16).toString(COMMON.HEX);
 }
 
 //*****************IV-Management******************/
@@ -57,8 +47,9 @@ class TokenSessionManager {
 
         this.#JTI_to_hexIV.delete(currentJTI);
         this.#hexIV_to_JTI.delete(hexIV);
-        this.#hexIV_to_setTimeout.delete(hexIV);
-      }, parseInt(process.env.JWT_EXP_SECONDS) * 1000);
+      }, parseInt(process.env.JWT_EXP_SECONDS) * 1000).then(() => {
+        this.#hexIV_to_setTimeout.delete(hexIV); //making sure the right chain of execution for deleting the resolved timeout
+      });
 
       this.#hexIV_to_setTimeout.set(hexIV, timeout);
 
@@ -84,12 +75,12 @@ class TokenSessionManager {
       }
 
       const timeout = this.#hexIV_to_setTimeout.get(corresIV);
-      clearTimeout(timeout);
-      //get rid of the automatic termination if you are manually terminating the session
 
       this.#JTI_to_hexIV.delete(currentJti);
-      this.#hexIV_to_setTimeout.delete(corresIV);
       this.#hexIV_to_JTI.delete(corresIV);
+
+      clearTimeout(timeout); //get rid of the automatic termination if you are manually terminating the session
+      this.#hexIV_to_setTimeout.delete(corresIV);
 
       return true;
     } catch (error) {
