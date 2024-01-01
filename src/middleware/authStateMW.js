@@ -1,8 +1,10 @@
-const auth = require("../utils/authProcessApis");
+const auth = require("../services/authProcessApis");
+
+const { JWT_RESPONSE_TYPE } = require("../enums/jwtEnums");
 
 //******************GET******************/
 
-async function checkCurrentAuthState(req, res) {
+async function scanAuth(req, res) {
   //if the jwt cookie does not exist, then obviously not authenticated
   if (!req.cookies.jwt) {
     res.status(200).json({ auth: false });
@@ -12,10 +14,10 @@ async function checkCurrentAuthState(req, res) {
   //validate the token that is stored in the cookie, which involves checking
   //session validity, cryptographic operations, and comparing data that exists within
   //the token to what is within the DB
-  let result;
+  let authResult;
 
   try {
-    result = await auth.checkAuth(req.cookies.jwt); //doesn't throw errors, will only return flags.
+    authResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw errors, will only return flags.
   } catch (error) {
     console.error(
       "AUTH STATE VALIDATION: checkCurrentAuthState catch block",
@@ -24,16 +26,16 @@ async function checkCurrentAuthState(req, res) {
     );
   }
 
-  const { type } = result; //can be either 'error' or 'token'
+  const { type } = authResult; //can be either 'error' or 'token'
 
-  if (type === "error") {
-    res.status(200).json({ auth: false });
+  if (type === JWT_RESPONSE_TYPE.VALID) {
+    res.status(200).json({ auth: true });
     return;
   }
 
-  res.status(200).json({ auth: true });
+  res.status(200).json({ auth: false });
 }
 
-const authStateMW = [checkCurrentAuthState];
+const authStateMW = [scanAuth];
 
 module.exports = authStateMW;

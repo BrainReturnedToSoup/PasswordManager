@@ -1,4 +1,6 @@
-const { fork } = require("child_process");
+const { fork } = require("child_process"),
+  path = require("path"); //for proper module fork directory
+
 const { v4: uuid } = require("uuid");
 
 const AUTH_ENUMS = require("../enums/authProcessEnums");
@@ -17,7 +19,10 @@ class Auth {
   //a single listener portal for the messages send back from the child process to
   //use after processing some sort of action
   #initProcessListener() {
-    this.process = fork("../auth/authProcess.js");
+    const parentDir = path.join(__dirname, ".."),
+      modulePath = path.join(parentDir, "auth", "authProcess.js");
+
+    this.process = fork(modulePath);
 
     this.process.on(AUTH_ENUMS.MESSAGE, (res) => {
       this.#processMessage(res);

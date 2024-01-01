@@ -10,7 +10,8 @@ function validateEmailAndPassword(req) {
     .matches(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/
     )
-    .withMessage("password");
+    .withMessage("password")
+    .run(req);
 
   //only if the field exists in the form submission
 
@@ -26,7 +27,8 @@ function validateEmailAndPassword(req) {
         //a custom validation method that makes sure that
         //the confirm password field matches the password field
       })
-      .withMessage("confirm-password");
+      .withMessage("confirm-password")
+      .run(req);
   }
 
   const errors = validationResult(req);

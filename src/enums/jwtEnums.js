@@ -10,10 +10,10 @@ const JWT_ERROR = Object.freeze({
   JTI_UPDATE_FAILURE: "jti-update-failure",
 });
 
-const JWT_RESPONSE = Object.freeze({
-  TYPE_ERROR: "error",
-  TYPE_TOKEN: "token",
-  TYPE_VALID: "valid",
+const JWT_RESPONSE_TYPE = Object.freeze({
+  ERROR: "error",
+  TOKEN: "token",
+  VALID: "valid",
 });
 
-module.exports = { JWT_ERROR, JWT_RESPONSE };
+module.exports = { JWT_ERROR, JWT_RESPONSE_TYPE };

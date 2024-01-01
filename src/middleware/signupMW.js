@@ -1,17 +1,17 @@
-const { promisify } = require("util"),
-  { v4: uuid } = require("uuid"),
-  bcrypt = require("bcrypt"),
-  bcryptHash = promisify(bcrypt.hash);
-
-const auth = require("../utils/authProcessApis"),
-  validateEmailAndPassword = require("../utils/validateEmailAndPassword"),
-  serveBundle = require("../utils/serveBundle");
-
+const serveBundle = require("../utils/serveBundle");
 const pool = require("../services/postgresql");
 
-//constants
+const { promisify } = require("util"),
+  { v4: uuid } = require("uuid");
+
+const bcrypt = require("bcrypt"),
+  bcryptHash = promisify(bcrypt.hash);
+
+const auth = require("../services/authProcessApis"),
+  validateEmailAndPassword = require("../utils/validateEmailAndPassword");
+
 const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums"),
-  { JWT_RESPONSE } = require("../enums/jwtEnums"),
+  { JWT_RESPONSE_TYPE } = require("../enums/jwtEnums"),
   VALIDATION_RESPONSE = require("../enums/validateEmailAndPassEnums");
 
 //******************GET******************/
@@ -23,38 +23,31 @@ const signupGetMW = [serveBundle];
 //POST requests on the /sign-up route which is for adding a new user using
 //the signup form values
 
-async function validateAuthSignupPost(req, res, next) {
-  if (!req.cookies.jwt) {
-    //if the jwt cookie does not exist, then obviously not authenticated
+async function scanAuthSignupPost(req, res, next) {
+  //if the jwt cookie exists, make sure that it's not already linked to
+  //an authenticated session.
+  if (req.cookies.jwt) {
+    let checkAuthResult;
 
-    next();
-    return;
+    try {
+      checkAuthResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw auth related errors, will only return flags.
+    } catch (error) {
+      console.error(
+        "SIGN-UP ERROR: validateAuthSignupPost catch block",
+        error,
+        error.stack
+      );
+    }
+
+    //only an issue if the current JWT token in cookies is valid
+    if (checkAuthResult.type === JWT_RESPONSE_TYPE.VALID) {
+      res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
+
+      return;
+    }
   }
 
-  //validate the token that is stored in the cookie, which involves checking
-  //session validity, cryptographic operations, and comparing data that exists within
-  //the token to what is within the DB
-  let checkResult;
-
-  try {
-    checkResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw errors, will only return flags.
-  } catch (error) {
-    console.error(
-      "SIGN-UP ERROR: validateAuthSignupPost catch block",
-      error,
-      error.stack
-    );
-  }
-
-  //can be either 'error' or 'token'
-  if (checkResult.type === JWT_RESPONSE.TYPE_ERROR) {
-    console.error(`checkAuth-error`, checkResult.error);
-
-    next();
-    return;
-  }
-
-  res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
+  next(); //everything other than a valid JWT token in cookies allows for the processing of the auth request
 }
 
 async function trySignupAttempt(req, res, next) {
@@ -66,6 +59,7 @@ async function trySignupAttempt(req, res, next) {
     res.status(500).json({
       error: OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE,
     });
+
     return;
   }
 
@@ -93,7 +87,7 @@ async function trySignupAttempt(req, res, next) {
     console.error("SIGN UP ERROR: db-sign-up-error", error);
 
     res.status(500).json({ error: OUTBOUND_RESPONSE.DB_ERROR });
-    return; //ensures the middleware stops here
+    return;
   }
 
   //then check for whether the previous query returned a
@@ -119,10 +113,6 @@ async function addNewUser(req, res, next) {
     //uses the bcrypt.hash method that was simplified using promisify
     const hashedPW = await bcryptHash(password, process.env.BCRYPT_SR);
 
-    if (!hashedPW) {
-      throw new Error("no-hashed-password");
-    }
-
     connection = await pool.connect();
     await connection.query(
       `INSERT INTO users (user_uuid, email, pw) VALUES ($1, $2, $3)`,
@@ -146,7 +136,7 @@ async function addNewUser(req, res, next) {
   next();
 }
 
-async function authAndSendToHome(req, res) {
+async function applyNewAuthStatus(req, res) {
   const { email, password } = req.body;
 
   let authResult;
@@ -161,7 +151,7 @@ async function authAndSendToHome(req, res) {
     );
   }
 
-  if (authResult.type === JWT_RESPONSE.TYPE_ERROR) {
+  if (authResult.type === JWT_RESPONSE_TYPE.ERROR) {
     console.error("SIGN-UP ERROR: auth-and-send-home");
 
     res.status(500).json({
@@ -170,7 +160,7 @@ async function authAndSendToHome(req, res) {
     return;
   }
 
-  if (authResult.type === JWT_RESPONSE.TYPE_TOKEN) {
+  if (authResult.type === JWT_RESPONSE_TYPE.TOKEN) {
     const { token } = authResult,
       cookieOptions = {
         secure: true, //the cookie is only sent over https
@@ -181,15 +171,15 @@ async function authAndSendToHome(req, res) {
     res
       .status(200)
       .cookie("jwt", token, cookieOptions) //the token is stored in the users secured cookies
-      .json({ redirect: OUTBOUND_RESPONSE.REDIRECT_HOME });
+      .json({ auth: true });
   }
 }
 
 const signupPostMW = [
-  validateAuthSignupPost,
+  scanAuthSignupPost,
   trySignupAttempt,
   addNewUser,
-  authAndSendToHome,
+  applyNewAuthStatus,
 ];
 
 //*****************EXPORTS***************/

@@ -10,7 +10,7 @@ const {
   TokenSessionManager,
 } = require("./tokenCrypto.js");
 
-const { JWT_ERROR, JWT_RESPONSE } = require("../enums/jwtEnums.js");
+const { JWT_ERROR, JWT_RESPONSE_TYPE } = require("../enums/jwtEnums.js");
 
 //for managing 'sessions' via established JTI-IV relationships. This is important
 //for remembering which IV is used for decrypting a specific token, even if the JTI
@@ -59,7 +59,7 @@ async function authUser(email, password) {
   }
 
   if (authError) {
-    return { type: JWT_RESPONSE.TYPE_ERROR, error: authError };
+    return { type: JWT_RESPONSE_TYPE.ERROR, error: authError };
   }
 
   if (user) {
@@ -79,7 +79,7 @@ async function authUser(email, password) {
 
     if (!newSession.success) {
       return {
-        type: JWT_RESPONSE.TYPE_ERROR,
+        type: JWT_RESPONSE_TYPE.ERROR,
         error: JWT_ERROR.SESSION_CREATION_FAILURE,
       };
     }
@@ -95,7 +95,7 @@ async function authUser(email, password) {
 
     const token = jwt.sign(payload, process.env.JWT_SK);
 
-    return { type: JWT_RESPONSE.TYPE_TOKEN, token };
+    return { type: JWT_RESPONSE_TYPE.TOKEN, token };
   }
 }
 
@@ -115,20 +115,20 @@ async function checkAuth(encodedToken) {
   }
 
   if (error) {
-    return { type: JWT_RESPONSE.TYPE_ERROR, error: JWT_ERROR.INVALID_TOKEN };
+    return { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.INVALID_TOKEN };
   }
 
   const validationResult = await validateDecodedToken(decodedToken);
 
   if (validationResult.error === JWT_ERROR.USER_NOT_FOUND) {
-    return { type: JWT_RESPONSE.TYPE_ERROR, error: JWT_ERROR.INVALID_TOKEN };
+    return { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.INVALID_TOKEN };
   }
 
   if (validationResult.error) {
-    return { type: JWT_RESPONSE.TYPE_ERROR, error: JWT_ERROR.VALIDATION_ERROR };
+    return { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.VALIDATION_ERROR };
   }
 
-  return { type: JWT_RESPONSE.TYPE_VALID, decodedToken };
+  return { type: JWT_RESPONSE_TYPE.VALID, decodedToken };
 }
 
 async function validateDecodedToken(decodedToken) {
@@ -176,7 +176,7 @@ function renewToken(decodedToken) {
   //basically checking if the associated session for the token exists
   //and thus still valid
   if (!tokenSessionManager.hasJti(jti)) {
-    return { type: JWT_RESPONSE.TYPE_ERROR, error: JWT_ERROR.INVALID_JTI };
+    return { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.INVALID_JTI };
   }
 
   const jtiNew = uuid(),
@@ -193,14 +193,14 @@ function renewToken(decodedToken) {
 
   if (!updateResult) {
     return {
-      type: JWT_RESPONSE.TYPE_ERROR,
+      type: JWT_RESPONSE_TYPE.ERROR,
       error: JWT_ERROR.JTI_UPDATE_FAILURE,
     };
   }
   //just in case due to some async execution order that the IV is not present
   //at this stage for the same reason as previously
 
-  return { type: JWT_RESPONSE.TYPE_TOKEN, newToken };
+  return { type: JWT_RESPONSE_TYPE.TOKEN, newToken };
 }
 
 module.exports = { authUser, checkAuth, renewToken };

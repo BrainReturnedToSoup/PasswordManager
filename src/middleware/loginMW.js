@@ -1,9 +1,10 @@
-const validateEmailAndPassword = require("../utils/validateEmailAndPassword");
-const auth = require("../utils/authProcessApis");
 const serveBundle = require("../utils/serveBundle");
 
+const validateEmailAndPassword = require("../utils/validateEmailAndPassword");
+const auth = require("../services/authProcessApis");
+
 const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums"),
-  { JWT_RESPONSE } = require("../enums/jwtEnums"),
+  { JWT_RESPONSE_TYPE } = require("../enums/jwtEnums"),
   VALIDATION_RESPONSE = require("../enums/validateEmailAndPassEnums");
 
 //******************GET******************/
@@ -15,38 +16,31 @@ const loginGetMW = [serveBundle];
 //POST requests on the /log-in route which is for authenticating a user using
 //the login form values
 
-async function validateAuthLoginPost(req, res, next) {
-  //if the jwt cookie does not exist, then obviously not authenticated
-  if (!req.cookies.jwt) {
-    next();
-    return;
+async function scanAuthLoginPost(req, res, next) {
+  //if the jwt cookie exists, make sure that it's not already linked to
+  //an authenticated session.
+  if (req.cookies.jwt) {
+    let checkAuthResult;
+
+    try {
+      checkAuthResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw auth related errors, will only return flags.
+    } catch (error) {
+      console.error(
+        "LOG-IN ERROR: validateAuthLoginPost catch block",
+        error,
+        error.stack
+      );
+    }
+
+    //only an issue if the current JWT token in cookies is valid
+    if (checkAuthResult.type === JWT_RESPONSE_TYPE.VALID) {
+      res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
+
+      return;
+    }
   }
 
-  //validate the token that is stored in the cookie, which involves checking
-  //session validity, cryptographic operations, and comparing data that exists within
-  //the token to what is within the DB
-  let authResult;
-
-  try {
-    authResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw errors, will only return flags.
-  } catch (error) {
-    console.error(
-      "LOG-IN ERROR: validateAuthLoginPost catch block",
-      error,
-      error.stack
-    );
-  }
-
-  //can be either 'error' or 'token'
-
-  if (authResult.type === JWT_RESPONSE.TYPE_ERROR) {
-    console.error(`checkAuth-error`, authResult.error);
-
-    next();
-    return;
-  }
-
-  res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
+  next(); //everything other than a valid JWT token in cookies allows for the processing of the auth request
 }
 
 async function tryLoginAttempt(req, res) {
@@ -58,6 +52,7 @@ async function tryLoginAttempt(req, res) {
     res
       .status(400)
       .json({ error: OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE });
+
     return;
   }
 
@@ -73,16 +68,17 @@ async function tryLoginAttempt(req, res) {
     console.error(error, error.stack);
   }
 
-  if (authResult.type === JWT_RESPONSE.TYPE_ERROR) {
+  if (authResult.type === JWT_RESPONSE_TYPE.ERROR) {
     console.error("LOG-IN ERROR: user-auth-failure");
 
     res.status(400).json({
       error: OUTBOUND_RESPONSE.USER_AUTH_FAILURE,
     });
+
     return;
   } //for both actual errors and invalid login info errors
 
-  if (authResult.type === JWT_RESPONSE.TYPE_TOKEN) {
+  if (authResult.type === JWT_RESPONSE_TYPE.TOKEN) {
     const { token } = authResult,
       cookieOptions = {
         secure: true, //the cookie is only sent over https
@@ -90,14 +86,11 @@ async function tryLoginAttempt(req, res) {
         sameSite: "Strict", //prevents requests from different origins from using the cookie
       };
 
-    res
-      .cookie("jwt", token, cookieOptions)
-      .status(200)
-      .json({ redirect: OUTBOUND_RESPONSE.REDIRECT_HOME }); //the token is stored in the users secured cookies, redirect to home
+    res.status(200).cookie("jwt", token, cookieOptions).json({ auth: true }); //the token is stored in the users secured cookies, redirect to home
   }
 }
 
-const loginPostMW = [validateAuthLoginPost, tryLoginAttempt];
+const loginPostMW = [scanAuthLoginPost, tryLoginAttempt];
 
 //*****************EXPORTS***************/
 
