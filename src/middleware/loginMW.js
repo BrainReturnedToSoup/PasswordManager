@@ -69,11 +69,14 @@ async function tryLoginAttempt(req, res) {
   }
 
   if (authResult.type === JWT_RESPONSE_TYPE.ERROR) {
-    console.error("LOG-IN ERROR: user-auth-failure");
+    console.error(
+      "LOG-IN ERROR: user-auth-failure",
+      authResult.error
+    );
 
     res.status(400).json({
-      error: OUTBOUND_RESPONSE.USER_AUTH_FAILURE,
-    });
+      error: authResult.error,
+    }); 
 
     return;
   } //for both actual errors and invalid login info errors

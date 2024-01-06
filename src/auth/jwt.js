@@ -44,14 +44,14 @@ async function authUser(email, password) {
     );
 
     if (result.length !== 1) {
-      throw new Error(JWT_ERROR.INVALID_CREDS);
+      error = JWT_ERROR.INVALID_CREDS;
     }
 
     const fetchedUser = result[0],
       match = await bcrypt.compare(password, fetchedUser.pw);
 
     if (!match) {
-      throw new Error(JWT_ERROR.INVALID_CREDS);
+      error = JWT_ERROR.INVALID_CREDS;
     }
 
     user = fetchedUser;
@@ -65,7 +65,8 @@ async function authUser(email, password) {
   }
 
   if (error) {
-    return { type: JWT_RESPONSE_TYPE.ERROR, error: error };
+    const test = { type: JWT_RESPONSE_TYPE.ERROR, error };
+    return test;
   }
 
   if (user) {
