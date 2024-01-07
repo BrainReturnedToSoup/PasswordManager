@@ -154,10 +154,8 @@ async function applyNewAuthStatus(req, res) {
     );
   }
 
-  console.log("applyNewAuthStatus - authResult", authResult);
-
   if (authResult.type === JWT_RESPONSE_TYPE.ERROR) {
-    console.error("SIGN-UP ERROR: apply-new-auth-status");
+    console.error("SIGN-UP ERROR: apply-new-auth-status", authResult.type);
 
     res.status(500).json({
       error: OUTBOUND_RESPONSE.USER_AUTH_FAILURE,
