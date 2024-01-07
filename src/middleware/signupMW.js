@@ -1,4 +1,6 @@
-const serveBundle = require("../utils/serveBundle");
+const serveBundle = require("../utils/serveBundle"),
+  validateEmailAndPassword = require("../utils/validateEmailAndPassword");
+
 const pool = require("../services/postgresql");
 
 const { promisify } = require("util"),
@@ -7,12 +9,12 @@ const { promisify } = require("util"),
 const bcrypt = require("bcrypt"),
   bcryptHash = promisify(bcrypt.hash);
 
-const auth = require("../services/authProcessApis"),
-  validateEmailAndPassword = require("../utils/validateEmailAndPassword");
+const auth = require("../services/authProcessApis");
 
 const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums"),
   { JWT_RESPONSE_TYPE } = require("../enums/jwtEnums"),
   VALIDATION_RESPONSE = require("../enums/validateEmailAndPassEnums");
+const censorEmail = require("../utils/censorEmail");
 
 //******************GET******************/
 
@@ -171,10 +173,12 @@ async function applyNewAuthStatus(req, res) {
         sameSite: "Strict", //prevents requests from different origins from using the cookie
       };
 
+    const censoredEmail = censorEmail(email);
+
     res
       .status(200)
       .cookie("jwt", token, cookieOptions) //the token is stored in the users secured cookies
-      .json({ auth: true });
+      .json({ auth: true, email: censoredEmail });
   }
 }
 

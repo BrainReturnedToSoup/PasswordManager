@@ -1,6 +1,7 @@
 const serveBundle = require("../utils/serveBundle");
-
+const censorEmail = require("../utils/censorEmail");
 const validateEmailAndPassword = require("../utils/validateEmailAndPassword");
+
 const auth = require("../services/authProcessApis");
 
 const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums"),
@@ -56,11 +57,11 @@ async function tryLoginAttempt(req, res) {
     return;
   }
 
+  const { email, password } = req.body;
+
   let authResult;
 
   try {
-    const { email, password } = req.body;
-
     authResult = await auth.authUser(email, password);
     //perform authentication on the users email and password
     //either a token or an error of some kind will be returned
@@ -86,7 +87,12 @@ async function tryLoginAttempt(req, res) {
         sameSite: "Strict", //prevents requests from different origins from using the cookie
       };
 
-    res.status(200).cookie("jwt", token, cookieOptions).json({ auth: true }); //the token is stored in the users secured cookies, redirect to home
+    const censoredEmail = censorEmail(email);
+
+    res
+      .status(200)
+      .cookie("jwt", token, cookieOptions)
+      .json({ auth: true, email: censoredEmail }); //the token is stored in the users secured cookies, redirect to home
   }
 }
 

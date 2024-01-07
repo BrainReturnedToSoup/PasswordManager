@@ -38,23 +38,22 @@ async function authUser(email, password) {
   try {
     connection = await pool.connect();
 
-    const result = await connection.query(
-      `SELECT * FROM users WHERE email = $1`,
+    const result = await connection.oneOrNone(
+      `SELECT pw FROM users WHERE email = $1`,
       [email]
     );
 
     //ensure the comparison is only made when the query result returns a valid number of users
-    if (result.length !== 1) {
-      error = JWT_ERROR.INVALID_CREDS;
-    } else {
-      const fetchedUser = result[0],
-        match = await bcrypt.compare(password, fetchedUser.pw);
+    if (result) {
+      const match = await bcrypt.compare(password, result.pw);
 
       if (!match) {
         error = JWT_ERROR.INVALID_CREDS;
+      } else {
+        user = fetchedUser;
       }
-
-      user = fetchedUser;
+    } else {
+      error = JWT_ERROR.INVALID_CREDS;
     }
   } catch (err) {
     error = err;
@@ -132,7 +131,11 @@ async function checkAuth(encodedToken) {
       : { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.VALIDATION_ERROR };
   }
 
-  return { type: JWT_RESPONSE_TYPE.VALID, decodedToken };
+  return {
+    type: JWT_RESPONSE_TYPE.VALID,
+    decodedToken,
+    email: validationResult.email, //include the email for auth email value on the client
+  };
 }
 
 //decrypt the user UUID using the combination of the JTI stored on the token
@@ -151,17 +154,19 @@ async function validateDecodedToken(decodedToken) {
     jti
   );
 
-  let connection, error;
+  let email, connection, error;
 
   try {
     connection = await pool.connect();
 
-    const result = await connection.query(
-      `SELECT * FROM users WHERE user_uuid = $1`,
+    const result = await connection.oneOrNone(
+      `SELECT email FROM users WHERE user_uuid = $1`,
       [decryptedUserUUID]
     );
 
-    if (result.length !== 1) {
+    if (result) {
+      email = result;
+    } else {
       error = JWT_ERROR.USER_NOT_FOUND;
     }
   } catch (err) {
@@ -176,7 +181,7 @@ async function validateDecodedToken(decodedToken) {
     return { type: JWT_RESPONSE_TYPE.ERROR, error };
   }
 
-  return { type: JWT_RESPONSE_TYPE.VALID };
+  return { type: JWT_RESPONSE_TYPE.VALID, email };
 }
 
 //will use the decoded token otherwise returned from checkAuth mainly
