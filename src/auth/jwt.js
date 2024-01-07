@@ -43,18 +43,19 @@ async function authUser(email, password) {
       [email]
     );
 
+    //ensure the comparison is only made when the query result returns a valid number of users
     if (result.length !== 1) {
       error = JWT_ERROR.INVALID_CREDS;
+    } else {
+      const fetchedUser = result[0],
+        match = await bcrypt.compare(password, fetchedUser.pw);
+
+      if (!match) {
+        error = JWT_ERROR.INVALID_CREDS;
+      }
+
+      user = fetchedUser;
     }
-
-    const fetchedUser = result[0],
-      match = await bcrypt.compare(password, fetchedUser.pw);
-
-    if (!match) {
-      error = JWT_ERROR.INVALID_CREDS;
-    }
-
-    user = fetchedUser;
   } catch (err) {
     error = err;
   } finally {
@@ -65,8 +66,7 @@ async function authUser(email, password) {
   }
 
   if (error) {
-    const test = { type: JWT_RESPONSE_TYPE.ERROR, error };
-    return test;
+    return { type: JWT_RESPONSE_TYPE.ERROR, error };
   }
 
   if (user) {
@@ -162,7 +162,7 @@ async function validateDecodedToken(decodedToken) {
     );
 
     if (result.length !== 1) {
-      throw new Error(JWT_ERROR.USER_NOT_FOUND);
+      error = JWT_ERROR.USER_NOT_FOUND;
     }
   } catch (err) {
     error = err;
