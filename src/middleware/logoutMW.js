@@ -7,7 +7,7 @@ const { JWT_RESPONSE_TYPE } = require("../enums/jwtEnums");
 async function attemptLogout(req, res) {
   //if the jwt cookie does not exist, then obviously not logged in
   if (!req.cookies.jwt) {
-    res.status(200).json({ auth: false });
+    res.status(200).json({ success: true });
     return;
   }
 
@@ -25,7 +25,7 @@ async function attemptLogout(req, res) {
       error,
       error.stack
     );
-    res.status(500);
+    res.status(500).json({ success: false, error: "error goes here" });
     return;
   }
 
@@ -36,7 +36,7 @@ async function attemptLogout(req, res) {
   }
 
   //if the jwt response type is an error
-  res.status(200).json({ auth: false });
+  res.status(200).json({ success: false, error: "error goes here" });
 }
 
 const logoutPostMW = [attemptLogout];

@@ -98,7 +98,7 @@ async function tryLoginAttempt(req, res) {
     res
       .status(200)
       .cookie("jwt", token, cookieOptions)
-      .json({ auth: true, email: censoredEmail }); //the token is stored in the users secured cookies, redirect to home
+      .json({ success: true, email: censoredEmail }); //the token is stored in the users secured cookies, redirect to home
   }
 }
 

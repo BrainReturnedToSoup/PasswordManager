@@ -183,7 +183,7 @@ async function applyNewAuthStatus(req, res) {
     res
       .status(200)
       .cookie("jwt", token, cookieOptions) //the token is stored in the users secured cookies
-      .json({ auth: true, email: censoredEmail });
+      .json({ success: true, email: censoredEmail });
   }
 }
 
