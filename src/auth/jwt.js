@@ -218,5 +218,29 @@ function renewToken(decodedToken) {
   return { type: JWT_RESPONSE_TYPE.TOKEN, newToken };
 }
 
+async function deauthUser(encodedToken) {
+  let decodedToken, error;
+
+  //a valid token will not throw any errors, but instances of an invalid
+  //token, be it tampered or expired, will throw an error even if they are
+  //not 'true errors'
+  try {
+    decodedToken = jwt.verify(encodedToken, process.env.JWT_SK);
+  } catch (err) {
+    error = err;
+  }
+
+  if (error) {
+    return { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.INVALID_TOKEN };
+  }
+
+  const validationResult = await validateDecodedToken(decodedToken);
+
+  if (validationResult.type === JWT_RESPONSE_TYPE.ERROR) {
+    //decoded token isn't valid anyway, thus send an invalidation related response
+  } else {
+  }
+}
+
 module.exports = { authUser, checkAuth, renewToken };
 //will be used as utilities with middleware. Entire auth system will be within it's own child process

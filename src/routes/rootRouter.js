@@ -3,7 +3,8 @@ const router = require("express").Router();
 const loginRouter = require("./loginRouter"),
   signupRouter = require("./signupRouter"),
   homeRouter = require("./homeRouter"),
-  authStateRouter = require("./authStateRouter");
+  authStateRouter = require("./authStateRouter"),
+  logoutRouter = require("./loginRouter");
 
 const rootMW = require("../middleware/rootMW");
 
@@ -17,5 +18,6 @@ router.use("/log-in", loginRouter);
 router.use("/sign-up", signupRouter);
 router.use("/home", homeRouter);
 router.use("/auth-state", authStateRouter);
+router.use("/log-out", loginRouter);
 
 module.exports = router;

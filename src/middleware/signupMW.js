@@ -29,22 +29,27 @@ async function scanAuthSignupPost(req, res, next) {
   //if the jwt cookie exists, make sure that it's not already linked to
   //an authenticated session.
   if (req.cookies.jwt) {
-    let checkAuthResult;
+    let checkAuthResult, error;
 
     try {
       checkAuthResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw auth related errors, will only return flags.
-    } catch (error) {
+    } catch (err) {
+      error = err;
+    }
+
+    if (error) {
       console.error(
         "SIGN-UP ERROR: validateAuthSignupPost catch block",
         error,
         error.stack
       );
+      res.status(500);
+      return;
     }
 
     //only an issue if the current JWT token in cookies is valid
     if (checkAuthResult.type === JWT_RESPONSE_TYPE.VALID) {
       res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
-
       return;
     }
   }
@@ -57,11 +62,9 @@ async function trySignupAttempt(req, res, next) {
 
   if (validationResult === VALIDATION_RESPONSE.ERROR) {
     console.error("SIGN-UP ERROR: constraint-validation-failure");
-
     res.status(500).json({
       error: OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE,
     });
-
     return;
   }
 
@@ -87,7 +90,6 @@ async function trySignupAttempt(req, res, next) {
 
   if (error) {
     console.error("SIGN UP ERROR: db-sign-up-error", error);
-
     res.status(500).json({ error: OUTBOUND_RESPONSE.DB_ERROR });
     return;
   }
@@ -97,7 +99,6 @@ async function trySignupAttempt(req, res, next) {
   //with the supplied email
   if (numOfUsers[0].count > 0) {
     console.error("SIGN-UP ERROR: existing-user");
-
     res.status(400).json({ error: OUTBOUND_RESPONSE.EXISTING_USER });
     return; //ensures the middleware stops here
   }
@@ -133,7 +134,6 @@ async function addNewUser(req, res, next) {
 
   if (error) {
     console.error("SIGN-UP ERROR: add-new-user-db-connection", error);
-
     res.status(500).json({ error: OUTBOUND_RESPONSE.DB_ERROR });
     return;
   }
@@ -144,21 +144,26 @@ async function addNewUser(req, res, next) {
 async function applyNewAuthStatus(req, res) {
   const { email, password } = req.body;
 
-  let authResult;
+  let authResult, error;
 
   try {
     authResult = await auth.authUser(email, password);
-  } catch (error) {
+  } catch (err) {
+    error = err;
+  }
+
+  if (error) {
     console.error(
       "SIGN-UP ERROR: applyNewAuthStatus catch block",
       error,
       error.stack
     );
+    res.status(500);
+    return;
   }
 
   if (authResult.type === JWT_RESPONSE_TYPE.ERROR) {
     console.error("SIGN-UP ERROR: apply-new-auth-status", authResult.type);
-
     res.status(500).json({
       error: OUTBOUND_RESPONSE.USER_AUTH_FAILURE,
     });

@@ -15,17 +15,20 @@ async function scanAuth(req, res) {
   //validate the token that is stored in the cookie, which involves checking
   //session validity, cryptographic operations, and comparing data that exists within
   //the token to what is within the DB
-  let authResult;
+  let authResult, error;
 
   try {
     authResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw errors, will only return flags.
-  } catch (error) {
+  } catch (err) {
+    error = err;
+  }
+
+  if (error) {
     console.error(
       "AUTH STATE VALIDATION: checkCurrentAuthState catch block",
       error,
       error.stack
     );
-
     res.status(200).json({ auth: false });
     return;
   }
@@ -34,7 +37,6 @@ async function scanAuth(req, res) {
 
   if (type === JWT_RESPONSE_TYPE.VALID) {
     const censoredEmail = censorEmail(email);
-
     res.status(200).json({ auth: true, email: censoredEmail });
     return;
   }
