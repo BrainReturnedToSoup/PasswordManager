@@ -1,6 +1,6 @@
 function censorEmail(email) {
-  const firstTwoLetters = email.slice(0, 1);
-  const finalEmail = firstTwoLetters + "*".repeat(email.length - 2);
+  const firstThreeLetters = email.slice(0, 3);
+  const finalEmail = firstThreeLetters + "*".repeat(email.length - 3);
 
   return finalEmail;
 }

@@ -11,6 +11,6 @@ const postOptions = {
   credentials: true, //for allowing cookies to be sent in the request
 };
 
-router.post("/log-out", cors(postOptions), logoutPostMW);
+router.post("/", cors(postOptions), logoutPostMW);
 
 module.exports = router;

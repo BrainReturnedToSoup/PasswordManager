@@ -39,7 +39,7 @@ async function authUser(email, password) {
     connection = await pool.connect();
 
     const result = await connection.oneOrNone(
-      `SELECT pw FROM users WHERE email = $1`,
+      `SELECT pw, user_uuid FROM users WHERE email = $1`,
       [email]
     );
 
@@ -50,7 +50,7 @@ async function authUser(email, password) {
       if (!match) {
         error = JWT_ERROR.INVALID_CREDS;
       } else {
-        user = fetchedUser;
+        user = result;
       }
     } else {
       error = JWT_ERROR.INVALID_CREDS;
@@ -209,7 +209,7 @@ async function validateDecodedToken(decodedToken) {
     );
 
     if (result) {
-      email = result;
+      email = result.email;
     } else {
       error = JWT_ERROR.USER_NOT_FOUND;
     }
@@ -252,7 +252,6 @@ function renewToken(decodedToken) {
 
   if (!result) {
     console.error(`renewToken catch block: failed to update existing jti`);
-
     return {
       type: JWT_RESPONSE_TYPE.ERROR,
       error: JWT_ERROR.JTI_UPDATE_FAILURE,

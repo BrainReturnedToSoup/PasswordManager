@@ -4,7 +4,7 @@ const loginRouter = require("./loginRouter"),
   signupRouter = require("./signupRouter"),
   homeRouter = require("./homeRouter"),
   authStateRouter = require("./authStateRouter"),
-  logoutRouter = require("./loginRouter");
+  logoutRouter = require("./logoutRouter");
 
 const rootMW = require("../middleware/rootMW");
 
@@ -18,6 +18,6 @@ router.use("/log-in", loginRouter);
 router.use("/sign-up", signupRouter);
 router.use("/home", homeRouter);
 router.use("/auth-state", authStateRouter);
-router.use("/log-out", loginRouter);
+router.use("/log-out", logoutRouter);
 
 module.exports = router;

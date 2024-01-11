@@ -4,7 +4,7 @@ const { JWT_RESPONSE_TYPE } = require("../enums/jwtEnums");
 
 //*****************POST******************/
 
-async function validateAuth(req, res) {
+async function validateAuth(req, res, next) {
   //if the jwt cookie does not exist, then obviously not logged in
   if (!req.cookies.jwt) {
     res.status(200).json({ success: true });
@@ -36,7 +36,7 @@ async function validateAuth(req, res) {
     return;
   }
 
-  next();
+  next(); //this means the current request source is a valid session that can be logged out of
 }
 
 async function attemptLogout(req, res) {
