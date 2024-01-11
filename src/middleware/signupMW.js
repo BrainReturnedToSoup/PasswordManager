@@ -25,33 +25,36 @@ const signupGetMW = [serveBundle];
 //POST requests on the /sign-up route which is for adding a new user using
 //the signup form values
 
-async function scanAuthSignupPost(req, res, next) {
+async function validateAuth(req, res, next) {
   //if the jwt cookie exists, make sure that it's not already linked to
   //an authenticated session.
-  if (req.cookies.jwt) {
-    let checkAuthResult, error;
+  if (!req.cookies.jwt) {
+    next();
+    return;
+  }
 
-    try {
-      checkAuthResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw auth related errors, will only return flags.
-    } catch (err) {
-      error = err;
-    }
+  let checkAuthResult, error;
 
-    if (error) {
-      console.error(
-        "SIGN-UP ERROR: validateAuthSignupPost catch block",
-        error,
-        error.stack
-      );
-      res.status(500);
-      return;
-    }
+  try {
+    checkAuthResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw auth related errors, will only return flags.
+  } catch (err) {
+    error = err;
+  }
 
-    //only an issue if the current JWT token in cookies is valid
-    if (checkAuthResult.type === JWT_RESPONSE_TYPE.VALID) {
-      res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
-      return;
-    }
+  if (error) {
+    console.error(
+      "SIGN-UP ERROR: validateAuth - Signup POST catch block",
+      error,
+      error.stack
+    );
+    res.status(500);
+    return;
+  }
+
+  //only an issue if the current JWT token in cookies is valid
+  if (checkAuthResult.type === JWT_RESPONSE_TYPE.VALID) {
+    res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
+    return;
   }
 
   next(); //everything other than a valid JWT token in cookies allows for the processing of the auth request
@@ -188,7 +191,7 @@ async function applyNewAuthStatus(req, res) {
 }
 
 const signupPostMW = [
-  scanAuthSignupPost,
+  validateAuth,
   trySignupAttempt,
   addNewUser,
   applyNewAuthStatus,

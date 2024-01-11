@@ -91,9 +91,16 @@ class Auth {
     return promise;
   }
 
-  checkAuth(cookies) {
+  deauthUser(jwtCookie) {
     const { promise, promiseID } = this.#createResponsePromise();
-    this.#sendMessage({ rule: AUTH_ENUMS.CHECK_AUTH, promiseID, cookies });
+    this.#sendMessage({ rule: AUTH_ENUMS.DEAUTH_USER, promiseID, jwtCookie });
+
+    return promise;
+  }
+
+  checkAuth(jwtCookie) {
+    const { promise, promiseID } = this.#createResponsePromise();
+    this.#sendMessage({ rule: AUTH_ENUMS.CHECK_AUTH, promiseID, jwtCookie });
 
     return promise;
   }

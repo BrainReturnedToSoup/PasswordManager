@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const { authUser, checkAuth, renewToken } = require("./jwt");
+const { authUser, checkAuth, renewToken, deauthUser } = require("./jwt");
 
 const AUTH_ENUMS = require("../enums/authProcessEnums");
 
@@ -13,8 +13,7 @@ const AUTH_ENUMS = require("../enums/authProcessEnums");
 //the promiseID is returned in order to link each message to a promise that was made on the main process, and thus
 //fulfill that promise as usual using a hash map. Overall, this ensures that the main process can interact with
 //the child process just like any other asynchronous task.
-async function authUserWrapper(args) {
-  const { email, password, promiseID } = args;
+async function authUserWrapper({ email, password, promiseID }) {
   let result, error;
 
   try {
@@ -26,13 +25,11 @@ async function authUserWrapper(args) {
   process.send({ result, promiseID, error });
 }
 
-async function checkAuthWrapper(args) {
-  const { cookies, promiseID } = args;
-
+async function deauthUserWrapper({ jwtCookie, promiseID }) {
   let result, error;
 
   try {
-    result = await checkAuth(cookies);
+    result = await deauthUser(jwtCookie);
   } catch (err) {
     error = err;
   }
@@ -40,9 +37,19 @@ async function checkAuthWrapper(args) {
   process.send({ result, promiseID, error });
 }
 
-async function renewTokenWrapper(args) {
-  const { decodedToken, promiseID } = args;
+async function checkAuthWrapper({ jwtCookie, promiseID }) {
+  let result, error;
 
+  try {
+    result = await checkAuth(jwtCookie);
+  } catch (err) {
+    error = err;
+  }
+
+  process.send({ result, promiseID, error });
+}
+
+async function renewTokenWrapper({ decodedToken, promiseID }) {
   let result, error;
 
   try {
@@ -67,6 +74,10 @@ process.on(AUTH_ENUMS.MESSAGE, (args) => {
   switch (rule) {
     case AUTH_ENUMS.AUTH_USER:
       authUserWrapper(args);
+      break;
+
+    case AUTH_ENUMS.DEAUTH_USER:
+      deauthUserWrapper(args);
       break;
 
     case AUTH_ENUMS.CHECK_AUTH:

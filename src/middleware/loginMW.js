@@ -17,32 +17,33 @@ const loginGetMW = [serveBundle];
 //POST requests on the /log-in route which is for authenticating a user using
 //the login form values
 
-async function scanAuthLoginPost(req, res, next) {
-  //if the jwt cookie exists, make sure that it's not already linked to
-  //an authenticated session.
-  if (req.cookies.jwt) {
-    let checkAuthResult, error;
+async function validateAuth(req, res, next) {
+  if (!req.cookies.jwt) {
+    next();
+    return;
+  }
 
-    try {
-      checkAuthResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw auth related errors, will only return flags.
-    } catch (err) {
-      error = err;
-    }
+  let checkAuthResult, error;
 
-    if (error) {
-      console.error(
-        "LOG-IN ERROR: validateAuthLoginPost catch block",
-        error,
-        error.stack
-      );
-      return;
-    }
+  try {
+    checkAuthResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw auth related errors, will only return flags.
+  } catch (err) {
+    error = err;
+  }
 
-    //only an issue if the current JWT token in cookies is valid
-    if (checkAuthResult.type === JWT_RESPONSE_TYPE.VALID) {
-      res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
-      return;
-    }
+  if (error) {
+    console.error(
+      "LOG-IN ERROR: validateAuth - Login POST catch block",
+      error,
+      error.stack
+    );
+    return;
+  }
+
+  //only an issue if the current JWT token in cookies is valid
+  if (checkAuthResult.type === JWT_RESPONSE_TYPE.VALID) {
+    res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
+    return;
   }
 
   next(); //everything other than a valid JWT token in cookies allows for the processing of the auth request
@@ -64,9 +65,7 @@ async function tryLoginAttempt(req, res) {
   let authResult, error;
 
   try {
-    authResult = await auth.authUser(email, password);
-    //perform authentication on the users email and password
-    //either a token or an error of some kind will be returned
+    authResult = await auth.authUser(email, password); //either a token or an error of some kind will be returned
   } catch (err) {
     error = err;
   }
@@ -102,7 +101,7 @@ async function tryLoginAttempt(req, res) {
   }
 }
 
-const loginPostMW = [scanAuthLoginPost, tryLoginAttempt];
+const loginPostMW = [validateAuth, tryLoginAttempt];
 
 //*****************EXPORTS***************/
 

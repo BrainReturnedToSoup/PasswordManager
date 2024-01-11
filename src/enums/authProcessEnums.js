@@ -3,6 +3,7 @@ const AUTH_ENUMS = Object.freeze({
   REJECT_TIMEOUT: "auth-child-process-promise-timed-out",
 
   AUTH_USER: "authUser",
+  DEAUTH_USER: "deauthUser",
   CHECK_AUTH: "checkAuth",
   RENEW_TOKEN: "renewToken",
 });

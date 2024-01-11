@@ -65,6 +65,7 @@ async function authUser(email, password) {
   }
 
   if (error) {
+    console.error(`authUser catch block: `, error, error.stack);
     return { type: JWT_RESPONSE_TYPE.ERROR, error };
   }
 
@@ -81,6 +82,7 @@ async function authUser(email, password) {
     const newSession = tokenSessionManager.createSession(startingJti, newHexIV);
 
     if (!newSession) {
+      console.error(`authUser catch block: session creation failure`);
       return {
         type: JWT_RESPONSE_TYPE.ERROR,
         error: JWT_ERROR.SESSION_CREATION_FAILURE,
@@ -102,6 +104,45 @@ async function authUser(email, password) {
   }
 }
 
+async function deauthUser(encodedToken) {
+  let decodedToken, error;
+
+  //a valid token will not throw any errors, but instances of an invalid
+  //token, be it tampered or expired, will throw an error even if they are
+  //not 'true errors'
+  try {
+    decodedToken = jwt.verify(encodedToken, process.env.JWT_SK);
+  } catch (err) {
+    error = err;
+  }
+
+  if (error) {
+    console.error(`deauthUser catch block: `, error, error.stack);
+    return { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.INVALID_TOKEN };
+  }
+
+  const validationResult = await validateDecodedToken(decodedToken);
+
+  if (validationResult.type === JWT_RESPONSE_TYPE.ERROR) {
+    return { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.INVALID_TOKEN };
+  }
+
+  //at this point this token is a completely valid token, thus you can terminate
+  //its session without issue
+  const { jti } = decodedToken,
+    success = tokenSessionManager.terminateSession(jti);
+
+  if (!success) {
+    console.error(`authUser catch block: session termination failure`);
+    return {
+      type: JWT_RESPONSE_TYPE.ERROR,
+      error: JWT_ERROR.SESSION_TERMINATION_FAILURE,
+    };
+  }
+
+  return { type: JWT_RESPONSE_TYPE.VALID };
+}
+
 async function checkAuth(encodedToken) {
   //receives a requests 'cookies' property, which is where the JWT token
   //is managed from on the client side.
@@ -118,12 +159,15 @@ async function checkAuth(encodedToken) {
   }
 
   if (error) {
+    console.error(`checkAuth catch block: `, error, error.stack);
     return { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.INVALID_TOKEN };
   }
 
   const validationResult = await validateDecodedToken(decodedToken);
 
   if (validationResult.type === JWT_RESPONSE_TYPE.ERROR) {
+    console.error(`checkAuth catch block: jwt response type equals error`);
+
     const { error } = validationResult;
 
     return error === JWT_ERROR.USER_NOT_FOUND
@@ -204,9 +248,11 @@ function renewToken(decodedToken) {
   //create an entirely new token using the same encrypted user_uuid value
   //but with a new jti. This jti is updated in the session manager to the corres IV
   const newToken = jwt.sign(payload, process.env.JWT_SK),
-    updateResult = tokenSessionManager.updateExistingJti(jti, jtiNew);
+    result = tokenSessionManager.updateExistingJti(jti, jtiNew);
 
-  if (!updateResult) {
+  if (!result) {
+    console.error(`renewToken catch block: failed to update existing jti`);
+
     return {
       type: JWT_RESPONSE_TYPE.ERROR,
       error: JWT_ERROR.JTI_UPDATE_FAILURE,
@@ -218,29 +264,5 @@ function renewToken(decodedToken) {
   return { type: JWT_RESPONSE_TYPE.TOKEN, newToken };
 }
 
-async function deauthUser(encodedToken) {
-  let decodedToken, error;
-
-  //a valid token will not throw any errors, but instances of an invalid
-  //token, be it tampered or expired, will throw an error even if they are
-  //not 'true errors'
-  try {
-    decodedToken = jwt.verify(encodedToken, process.env.JWT_SK);
-  } catch (err) {
-    error = err;
-  }
-
-  if (error) {
-    return { type: JWT_RESPONSE_TYPE.ERROR, error: JWT_ERROR.INVALID_TOKEN };
-  }
-
-  const validationResult = await validateDecodedToken(decodedToken);
-
-  if (validationResult.type === JWT_RESPONSE_TYPE.ERROR) {
-    //decoded token isn't valid anyway, thus send an invalidation related response
-  } else {
-  }
-}
-
-module.exports = { authUser, checkAuth, renewToken };
+module.exports = { authUser, checkAuth, renewToken, deauthUser };
 //will be used as utilities with middleware. Entire auth system will be within it's own child process

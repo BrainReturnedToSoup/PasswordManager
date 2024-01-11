@@ -5,7 +5,7 @@ const { JWT_RESPONSE_TYPE } = require("../enums/jwtEnums");
 
 //******************GET******************/
 
-async function scanAuth(req, res) {
+async function validateAuth(req, res) {
   //if the jwt cookie does not exist, then obviously not authenticated
   if (!req.cookies.jwt) {
     res.status(200).json({ auth: false });
@@ -25,7 +25,7 @@ async function scanAuth(req, res) {
 
   if (error) {
     console.error(
-      "AUTH STATE VALIDATION: checkCurrentAuthState catch block",
+      "AUTH STATE VALIDATION: validateAuth - auth state POST catch block",
       error,
       error.stack
     );
@@ -45,6 +45,6 @@ async function scanAuth(req, res) {
   res.status(200).json({ auth: false });
 }
 
-const authStateMW = [scanAuth];
+const authStateMW = [validateAuth];
 
 module.exports = authStateMW;
