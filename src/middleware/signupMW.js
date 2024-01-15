@@ -33,10 +33,10 @@ async function validateAuth(req, res, next) {
     return;
   }
 
-  let checkAuthResult, error;
+  let result, error;
 
   try {
-    checkAuthResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw auth related errors, will only return flags.
+    result = await auth.checkAuth(req.cookies.jwt); //doesn't throw auth related errors, will only return flags.
   } catch (err) {
     error = err;
   }
@@ -52,7 +52,7 @@ async function validateAuth(req, res, next) {
   }
 
   //only an issue if the current JWT token in cookies is valid
-  if (checkAuthResult.type === JWT_RESPONSE_TYPE.VALID) {
+  if (result.type === JWT_RESPONSE_TYPE.VALID) {
     res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
     return;
   }
@@ -147,10 +147,10 @@ async function addNewUser(req, res, next) {
 async function applyNewAuthStatus(req, res) {
   const { email, password } = req.body;
 
-  let authResult, error;
+  let result, error;
 
   try {
-    authResult = await auth.authUser(email, password);
+    result = await auth.authUser(email, password);
   } catch (err) {
     error = err;
   }
@@ -165,16 +165,16 @@ async function applyNewAuthStatus(req, res) {
     return;
   }
 
-  if (authResult.type === JWT_RESPONSE_TYPE.ERROR) {
-    console.error("SIGN-UP ERROR: apply-new-auth-status", authResult.type);
+  if (result.type === JWT_RESPONSE_TYPE.ERROR) {
+    console.error("SIGN-UP ERROR: apply-new-auth-status", result.type);
     res.status(500).json({
       error: OUTBOUND_RESPONSE.USER_AUTH_FAILURE,
     });
     return;
   }
 
-  if (authResult.type === JWT_RESPONSE_TYPE.TOKEN) {
-    const { token } = authResult,
+  if (result.type === JWT_RESPONSE_TYPE.TOKEN) {
+    const { token } = result,
       cookieOptions = {
         secure: true, //the cookie is only sent over https
         httpOnly: true, //prevents client side JS from accessing the cookie

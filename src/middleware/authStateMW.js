@@ -15,10 +15,10 @@ async function validateAuth(req, res) {
   //validate the token that is stored in the cookie, which involves checking
   //session validity, cryptographic operations, and comparing data that exists within
   //the token to what is within the DB
-  let authResult, error;
+  let result, error;
 
   try {
-    authResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw errors, will only return flags.
+    result = await auth.checkAuth(req.cookies.jwt); //doesn't throw errors, will only return flags.
   } catch (err) {
     error = err;
   }
@@ -33,7 +33,7 @@ async function validateAuth(req, res) {
     return;
   }
 
-  const { type, email } = authResult; //can be either 'error' or 'token'
+  const { type, email } = result; //can be either 'error' or 'token'
 
   if (type === JWT_RESPONSE_TYPE.VALID) {
     const censoredEmail = censorEmail(email);

@@ -23,10 +23,10 @@ async function validateAuth(req, res, next) {
     return;
   }
 
-  let checkAuthResult, error;
+  let result, error;
 
   try {
-    checkAuthResult = await auth.checkAuth(req.cookies.jwt); //doesn't throw auth related errors, will only return flags.
+    result = await auth.checkAuth(req.cookies.jwt); //doesn't throw auth related errors, will only return flags.
   } catch (err) {
     error = err;
   }
@@ -41,7 +41,7 @@ async function validateAuth(req, res, next) {
   }
 
   //only an issue if the current JWT token in cookies is valid
-  if (checkAuthResult.type === JWT_RESPONSE_TYPE.VALID) {
+  if (result.type === JWT_RESPONSE_TYPE.VALID) {
     res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
     return;
   }
@@ -62,10 +62,10 @@ async function tryLoginAttempt(req, res) {
 
   const { email, password } = req.body;
 
-  let authResult, error;
+  let result, error;
 
   try {
-    authResult = await auth.authUser(email, password); //either a token or an error of some kind will be returned
+    result = await auth.authUser(email, password); //either a token or an error of some kind will be returned
   } catch (err) {
     error = err;
   }
@@ -76,16 +76,16 @@ async function tryLoginAttempt(req, res) {
     return;
   }
 
-  if (authResult.type === JWT_RESPONSE_TYPE.ERROR) {
-    console.error("LOG-IN ERROR: user-auth-failure ", authResult.error);
+  if (result.type === JWT_RESPONSE_TYPE.ERROR) {
+    console.error("LOG-IN ERROR: user-auth-failure ", result.error);
     res.status(400).json({
-      error: authResult.error,
+      error: result.error,
     });
     return;
   } //for both actual errors and invalid login info errors
 
-  if (authResult.type === JWT_RESPONSE_TYPE.TOKEN) {
-    const { token } = authResult,
+  if (result.type === JWT_RESPONSE_TYPE.TOKEN) {
+    const { token } = result,
       cookieOptions = {
         secure: true, //the cookie is only sent over https
         httpOnly: true, //prevents client side JS from accessing the cookie

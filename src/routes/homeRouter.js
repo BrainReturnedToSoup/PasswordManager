@@ -1,7 +1,11 @@
 const router = require("express").Router();
 const cors = require("cors");
 
-const { homeGetMW } = require("../middleware/homeMW");
+const {
+  homeGetMW,
+  homePostNewCredsMW,
+  homePostSettingsMW,
+} = require("../middleware/homeMW");
 
 //*************Routes*************/
 
@@ -13,6 +17,8 @@ const postOptions = {
   credentials: true, //for allowing cookies to be sent in the request
 };
 
-router.post("/", cors(postOptions));
+router.post("/settings", cors(postOptions), homePostSettingsMW);
+
+router.post("/new-credentials", cors(postOptions), homePostNewCredsMW);
 
 module.exports = router;
