@@ -37,12 +37,15 @@ async function validateAuth(req, res, next) {
       error,
       error.stack
     );
+    res.status(500).json({ success: false });
     return;
   }
 
   //only an issue if the current JWT token in cookies is valid
   if (result.type === JWT_RESPONSE_TYPE.VALID) {
-    res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
+    res
+      .status(400)
+      .json({ success: false, error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
     return;
   }
 
@@ -54,9 +57,10 @@ async function tryLoginAttempt(req, res) {
 
   if (validationResult === VALIDATION_RESPONSE.ERROR) {
     console.error("LOG-IN ERROR: constraint-validation-failure");
-    res
-      .status(400)
-      .json({ error: OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE });
+    res.status(400).json({
+      success: false,
+      error: OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE,
+    });
     return;
   }
 
@@ -72,15 +76,13 @@ async function tryLoginAttempt(req, res) {
 
   if (error) {
     console.error("LOG-IN ERROR: tryLoginAttempt ", error, error.stack);
-    res.status(500);
+    res.status(500).json({ success: false });
     return;
   }
 
   if (result.type === JWT_RESPONSE_TYPE.ERROR) {
     console.error("LOG-IN ERROR: user-auth-failure ", result.error);
-    res.status(400).json({
-      error: result.error,
-    });
+    res.status(400).json({ success: false, error: result.error });
     return;
   } //for both actual errors and invalid login info errors
 

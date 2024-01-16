@@ -47,13 +47,15 @@ async function validateAuth(req, res, next) {
       error,
       error.stack
     );
-    res.status(500);
+    res.status(500).json({ success: false });
     return;
   }
 
   //only an issue if the current JWT token in cookies is valid
   if (result.type === JWT_RESPONSE_TYPE.VALID) {
-    res.status(400).json({ error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
+    res
+      .status(400)
+      .json({ success: false, error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
     return;
   }
 
@@ -66,6 +68,7 @@ async function trySignupAttempt(req, res, next) {
   if (validationResult === VALIDATION_RESPONSE.ERROR) {
     console.error("SIGN-UP ERROR: constraint-validation-failure");
     res.status(500).json({
+      success: false,
       error: OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE,
     });
     return;
@@ -74,6 +77,8 @@ async function trySignupAttempt(req, res, next) {
   let connection, numOfUsers, error;
 
   try {
+    //essentially just check if the supplied email
+    //is linked to an existing email and thus an existing user.
     const { email } = req.body;
 
     connection = await pool.connect();
@@ -81,8 +86,6 @@ async function trySignupAttempt(req, res, next) {
       "SELECT COUNT(*) FROM users WHERE email = $1",
       [email]
     );
-    //essentially just check if the supplied email
-    //is linked to an existing email and thus an existing user.
   } catch (err) {
     error = err;
   } finally {
@@ -93,7 +96,7 @@ async function trySignupAttempt(req, res, next) {
 
   if (error) {
     console.error("SIGN UP ERROR: db-sign-up-error", error);
-    res.status(500).json({ error: OUTBOUND_RESPONSE.DB_ERROR });
+    res.status(500).json({ success: false, error: OUTBOUND_RESPONSE.DB_ERROR });
     return;
   }
 
@@ -102,7 +105,9 @@ async function trySignupAttempt(req, res, next) {
   //with the supplied email
   if (numOfUsers[0].count > 0) {
     console.error("SIGN-UP ERROR: existing-user");
-    res.status(400).json({ error: OUTBOUND_RESPONSE.EXISTING_USER });
+    res
+      .status(400)
+      .json({ success: false, error: OUTBOUND_RESPONSE.EXISTING_USER });
     return; //ensures the middleware stops here
   }
 
@@ -137,7 +142,7 @@ async function addNewUser(req, res, next) {
 
   if (error) {
     console.error("SIGN-UP ERROR: add-new-user-db-connection", error);
-    res.status(500).json({ error: OUTBOUND_RESPONSE.DB_ERROR });
+    res.status(500).json({ success: false, error: OUTBOUND_RESPONSE.DB_ERROR });
     return;
   }
 
@@ -161,13 +166,14 @@ async function applyNewAuthStatus(req, res) {
       error,
       error.stack
     );
-    res.status(500);
+    res.status(500).json({ success: false });
     return;
   }
 
   if (result.type === JWT_RESPONSE_TYPE.ERROR) {
     console.error("SIGN-UP ERROR: apply-new-auth-status", result.type);
     res.status(500).json({
+      success: false,
       error: OUTBOUND_RESPONSE.USER_AUTH_FAILURE,
     });
     return;

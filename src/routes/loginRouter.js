@@ -3,16 +3,17 @@ const cors = require("cors");
 
 const { loginGetMW, loginPostMW } = require("../middleware/loginMW");
 
-//*************Routes*************/
-
-router.get("/", loginGetMW);
+//**************CORS**************/
 
 const postOptions = {
-  origin: [process.env.SERVER_ORIGIN + "/log-in"],
+  origin: [process.env.SERVER_ORIGIN],
   methods: "POST",
   credentials: true, //for allowing cookies to be sent in the request
 };
 
+//*************Routes*************/
+
+router.get("/", loginGetMW);
 router.post("/", cors(postOptions), loginPostMW);
 
 module.exports = router;

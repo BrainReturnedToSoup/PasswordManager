@@ -8,7 +8,7 @@ const { JWT_RESPONSE_TYPE } = require("../enums/jwtEnums");
 async function validateAuth(req, res) {
   //if the jwt cookie does not exist, then obviously not authenticated
   if (!req.cookies.jwt) {
-    res.status(200).json({ auth: false });
+    res.status(200).json({ success: true, auth: false });
     return;
   }
 
@@ -29,7 +29,7 @@ async function validateAuth(req, res) {
       error,
       error.stack
     );
-    res.status(200).json({ auth: false });
+    res.status(500).json({ success: false });
     return;
   }
 
@@ -37,12 +37,12 @@ async function validateAuth(req, res) {
 
   if (type === JWT_RESPONSE_TYPE.VALID) {
     const censoredEmail = censorEmail(email);
-    res.status(200).json({ auth: true, email: censoredEmail });
+    res.status(200).json({ success: true, auth: true, email: censoredEmail });
     return;
   }
 
   //if the jwt response type is an error
-  res.status(200).json({ auth: false });
+  res.status(200).json({ success: true, auth: false });
 }
 
 const authStateMW = [validateAuth];
