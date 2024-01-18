@@ -1,4 +1,3 @@
-const { JWT_RESPONSE_TYPE } = require("../../enums/jwtEnums");
 const auth = require("../../services/authProcessApis");
 
 //*****************AUTH******************/
@@ -24,12 +23,12 @@ async function validateAuth(req, res, next) {
       error,
       error.stack
     );
-    res.status(400).json({ success: false, auth: false, error });
+    res.status(400).json({ success: false, error });
     return;
   }
 
-  if (result.type === JWT_RESPONSE_TYPE.ERROR) {
-    res.status(400).json({ success: false, auth: false, error: result.error });
+  if (!result.success) {
+    res.status(400).json({ success: false, auth: false });
     return;
   }
 

@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const { authUser, checkAuth, renewToken, deauthUser } = require("./jwt");
+const { authUser, checkAuth, renewToken, deauthUser } = require("./auth");
 
 const AUTH_ENUMS = require("../enums/authProcessEnums");
 

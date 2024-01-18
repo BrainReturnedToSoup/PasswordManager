@@ -1,20 +1,19 @@
 const auth = require("../services/authProcessApis");
 const censorEmail = require("../utils/censorEmail");
 
-const { JWT_RESPONSE_TYPE } = require("../enums/jwtEnums");
+const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums");
 
 //******************GET******************/
 
+//validate the token that is stored in the cookie, which involves checking
+//session validity, cryptographic operations, and comparing data that exists within
+//the token to what is within the DB
 async function validateAuth(req, res) {
-  //if the jwt cookie does not exist, then obviously not authenticated
   if (!req.cookies.jwt) {
-    res.status(200).json({ success: true, auth: false });
+    res.status(200).json({ success: true, auth: false }); //if the jwt cookie does not exist, then obviously not authenticated
     return;
   }
 
-  //validate the token that is stored in the cookie, which involves checking
-  //session validity, cryptographic operations, and comparing data that exists within
-  //the token to what is within the DB
   let result, error;
 
   try {
@@ -29,20 +28,20 @@ async function validateAuth(req, res) {
       error,
       error.stack
     );
-    res.status(500).json({ success: false });
+    res
+      .status(500)
+      .json({ success: false, error: OUTBOUND_RESPONSE.VALIDATE_AUTH_FAILURE });
     return;
   }
 
-  const { type, email } = result; //can be either 'error' or 'token'
-
-  if (type === JWT_RESPONSE_TYPE.VALID) {
-    const censoredEmail = censorEmail(email);
-    res.status(200).json({ success: true, auth: true, email: censoredEmail });
+  if (!result.success) {
+    res.status(200).json({ success: true, auth: false }); //if the auth had an internal error
     return;
   }
 
-  //if the jwt response type is an error
-  res.status(200).json({ success: true, auth: false });
+  res
+    .status(200)
+    .json({ success: true, auth: true, email: censorEmail(result.email) });
 }
 
 const authStateMW = [validateAuth];

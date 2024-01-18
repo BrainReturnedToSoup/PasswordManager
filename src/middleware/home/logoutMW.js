@@ -1,4 +1,3 @@
-const { JWT_RESPONSE_TYPE } = require("../../enums/jwtEnums");
 const auth = require("../../services/authProcessApis");
 
 //*****************AUTH******************/
@@ -6,7 +5,7 @@ const auth = require("../../services/authProcessApis");
 async function validateAuth(req, res, next) {
   //if the jwt cookie does not exist, then obviously not logged in
   if (!req.cookies.jwt) {
-    res.status(200).json({ success: true });
+    res.status(200).json({ success: false, auth: false }); //return auth when there isn't a system error
     return;
   }
 
@@ -24,14 +23,12 @@ async function validateAuth(req, res, next) {
       error,
       error.stack
     );
-    res.status(500).json({ success: false, error });
+    res.status(500).json({ success: false, error }); //this is for system errors, not within the auth flow logic itself
     return;
   }
 
-  const { type } = result; //can be either 'error' or 'token'
-
-  if (type === JWT_RESPONSE_TYPE.ERROR) {
-    res.status(200).json({ success: false, error: result.error });
+  if (!result.success) {
+    res.status(200).json({ ...result, auth: false }); //return auth when there isn't a system error
     return;
   }
 
@@ -59,14 +56,12 @@ async function attemptLogout(req, res) {
     return;
   }
 
-  const { type } = result;
-
-  if (type === JWT_RESPONSE_TYPE.ERROR) {
-    res.status(200).json({ success: false, error: result.error });
+  if (!result.success) {
+    res.status(500).json(result);
     return;
   }
 
-  res.status(200).json({ success: true });
+  res.status(200).json(result);
 }
 
 const logoutPostMW = [validateAuth, attemptLogout];

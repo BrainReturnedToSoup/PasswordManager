@@ -5,7 +5,6 @@ const validateEmailAndPassword = require("../utils/validateEmailAndPassword");
 const auth = require("../services/authProcessApis");
 
 const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums"),
-  { JWT_RESPONSE_TYPE } = require("../enums/jwtEnums"),
   VALIDATION_RESPONSE = require("../enums/validateEmailAndPassEnums");
 
 //******************GET******************/
@@ -20,8 +19,8 @@ const loginGetMW = [serveBundle];
 async function validateAuth(req, res, next) {
   if (!req.cookies.jwt) {
     next();
-    return;
-  }
+    return; //return early, because the 'next()' api is a flag
+  } //if there isn't a jwt cookie, then obviously not authed
 
   let result, error;
 
@@ -37,19 +36,23 @@ async function validateAuth(req, res, next) {
       error,
       error.stack
     );
-    res.status(500).json({ success: false });
-    return;
-  }
-
-  //only an issue if the current JWT token in cookies is valid
-  if (result.type === JWT_RESPONSE_TYPE.VALID) {
     res
-      .status(400)
-      .json({ success: false, error: OUTBOUND_RESPONSE.ALREADY_AUTHED });
+      .status(500)
+      .json({ success: false, error: OUTBOUND_RESPONSE.VALIDATE_AUTH_FAILURE });
     return;
   }
 
-  next(); //everything other than a valid JWT token in cookies allows for the processing of the auth request
+  if (result.success) {
+    res.status(400).json({
+      success: false,
+      auth: true,
+      error: OUTBOUND_RESPONSE.ALREADY_AUTHED,
+      email: censorEmail(result.email),
+    });
+    return;
+  } //its an issue if the user is already authed
+
+  next();
 }
 
 async function tryLoginAttempt(req, res) {
@@ -76,31 +79,27 @@ async function tryLoginAttempt(req, res) {
 
   if (error) {
     console.error("LOG-IN ERROR: tryLoginAttempt ", error, error.stack);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, error });
     return;
   }
 
-  if (result.type === JWT_RESPONSE_TYPE.ERROR) {
+  if (!result.success) {
     console.error("LOG-IN ERROR: user-auth-failure ", result.error);
-    res.status(400).json({ success: false, error: result.error });
+    res.status(400).json(result); //propagate the result object to the client, which includes the error that occurred
     return;
   } //for both actual errors and invalid login info errors
 
-  if (result.type === JWT_RESPONSE_TYPE.TOKEN) {
-    const { token } = result,
-      cookieOptions = {
-        secure: true, //the cookie is only sent over https
-        httpOnly: true, //prevents client side JS from accessing the cookie
-        sameSite: "Strict", //prevents requests from different origins from using the cookie
-      };
+  const { token } = result,
+    cookieOptions = {
+      secure: true, //the cookie is only sent over https
+      httpOnly: true, //prevents client side JS from accessing the cookie
+      sameSite: "Strict", //prevents requests from different origins from using the cookie
+    };
 
-    const censoredEmail = censorEmail(email);
-
-    res
-      .status(200)
-      .cookie("jwt", token, cookieOptions)
-      .json({ success: true, email: censoredEmail }); //the token is stored in the users secured cookies, redirect to home
-  }
+  res
+    .status(200)
+    .cookie("jwt", token, cookieOptions)
+    .json({ success: true, email: censorEmail(email) }); //the token is stored in the users secured cookies, redirect to home
 }
 
 const loginPostMW = [validateAuth, tryLoginAttempt];

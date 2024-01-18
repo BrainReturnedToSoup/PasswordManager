@@ -69,7 +69,7 @@ class Auth {
   initProcessListener() {
     if (!this.childProcess) {
       const parentDir = path.join(__dirname, ".."),
-        modulePath = path.join(parentDir, "auth", "authProcess.js");
+        modulePath = path.join(parentDir, "auth", "process.js");
 
       this.childProcess = fork(modulePath, { execArgv: ["--inspect"] }); //forking is async
 
