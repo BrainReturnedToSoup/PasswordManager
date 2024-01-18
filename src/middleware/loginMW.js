@@ -1,11 +1,9 @@
-const serveBundle = require("../utils/serveBundle");
-const censorEmail = require("../utils/censorEmail");
-const validateEmailAndPassword = require("../utils/validateEmailAndPassword");
-
 const auth = require("../services/authProcessApis");
 
-const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums"),
-  VALIDATION_RESPONSE = require("../enums/validateEmailAndPassEnums");
+const serveBundle = require("../utils/serveBundle"),
+  censorEmail = require("../utils/censorEmail");
+
+const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums");
 
 //******************GET******************/
 
@@ -56,17 +54,6 @@ async function validateAuth(req, res, next) {
 }
 
 async function tryLoginAttempt(req, res) {
-  const validationResult = validateEmailAndPassword(req);
-
-  if (validationResult === VALIDATION_RESPONSE.ERROR) {
-    console.error("LOG-IN ERROR: constraint-validation-failure");
-    res.status(400).json({
-      success: false,
-      error: OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE,
-    });
-    return;
-  }
-
   const { email, password } = req.body;
 
   let result, error;

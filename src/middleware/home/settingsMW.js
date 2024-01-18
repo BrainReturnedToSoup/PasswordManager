@@ -1,6 +1,8 @@
 const auth = require("../../services/authProcessApis");
 const pool = require("../../services/postgresql.js");
 
+const { validatePassword } = require("../../utils/constraintValidation.js");
+
 const promisify = require("util").promisify;
 const bcrypt = require("bcrypt"),
   bcryptHash = promisify(bcrypt.hash);
@@ -177,7 +179,20 @@ const homePostDeleteAccMW = [validateAuth, compareCredentials, deleteUser];
 
 //*****SET-NEW*PASSWORD*****/
 
-async function comparePasswords(req, res, next) {
+async function validatePasswords(req, res, next) {
+  //**CONSTRAINT-VALIDATION**/
+  const valid = validatePassword(req.body.newPassword);
+
+  if (!valid) {
+    console.error("SIGN-UP ERROR: constraint-validation-failure");
+    res.status(500).json({
+      success: false,
+      error: OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE,
+    });
+    return;
+  }
+
+  //**OLD-PW-COMPARISON**/
   const { oldPassword } = req.body,
     { encryptedPassword } = req.checkAuth;
 
@@ -198,7 +213,7 @@ async function comparePasswords(req, res, next) {
   if (!match) {
     res
       .status(500)
-      .json({ success: false, error: OUTBOUND_RESPONSE.USER_NOT_FOUND });
+      .json({ success: false, error: OUTBOUND_RESPONSE.INVALID_CREDS });
     return;
   }
 
@@ -213,10 +228,10 @@ async function setNewPassword(req, res, next) {
     { email } = req.checkAuth;
 
   //**HASH**/
-  let newHashedPassword, hashError;
+  let newPasswordHashed, hashError;
 
   try {
-    newHashedPassword = await bcryptHash(
+    newPasswordHashed = await bcryptHash(
       newPassword,
       parseInt(process.env.BCRYPT_SR)
     );
@@ -241,7 +256,7 @@ async function setNewPassword(req, res, next) {
     connection = await pool.connect();
 
     await connection.query(`UPDATE users SET pw = $1 WHERE email = $2`, [
-      newHashedPassword,
+      newPasswordHashed,
       email,
     ]);
   } catch (err) {
@@ -264,10 +279,12 @@ async function setNewPassword(req, res, next) {
 
 const homePostNewPasswordMW = [
   validateAuth,
-  comparePasswords,
+  validatePasswords,
   setNewPassword,
   clearSession, //have the manually clear the session forcing the user to log-in again
 ];
+
+//******VERIFY-EMAIL********/
 
 //for handling the verification of the email associated with an account, which this verification
 //enables the user to use the application to its fullest extent. This opens up the ability to change

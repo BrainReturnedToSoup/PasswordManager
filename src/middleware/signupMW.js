@@ -1,19 +1,16 @@
-const serveBundle = require("../utils/serveBundle"),
-  validateEmailAndPassword = require("../utils/validateEmailAndPassword");
-
 const pool = require("../services/postgresql");
 const auth = require("../services/authProcessApis");
 
-const { v4: uuid } = require("uuid");
+const serveBundle = require("../utils/serveBundle"),
+  { validateEmailAndPassword } = require("../utils/constraintValidation"),
+  censorEmail = require("../utils/censorEmail");
 
+const { v4: uuid } = require("uuid");
 const promisify = require("util").promisify;
 const bcrypt = require("bcrypt"),
   bcryptHash = promisify(bcrypt.hash);
 
-const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums"),
-  VALIDATION_RESPONSE = require("../enums/validateEmailAndPassEnums");
-
-const censorEmail = require("../utils/censorEmail");
+const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums");
 
 //******************GET******************/
 
@@ -66,9 +63,9 @@ async function validateAuth(req, res, next) {
 //essentially just check if the supplied credentials pass constraint validation and
 //is not linked to an existing email and thus an existing user.
 async function trySignupAttempt(req, res, next) {
-  const validationResult = validateEmailAndPassword(req);
+  const valid = validateEmailAndPassword(req.body.email, req.body.password);
 
-  if (validationResult === VALIDATION_RESPONSE.ERROR) {
+  if (!valid) {
     console.error("SIGN-UP ERROR: constraint-validation-failure");
     res.status(500).json({
       success: false,

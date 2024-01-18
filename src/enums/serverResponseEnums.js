@@ -8,8 +8,7 @@ const SERVER_RESPONSE = Object.freeze({
   VALIDATE_AUTH_FAILURE: "validate-auth-failure",
   USER_NOT_FOUND: "user-not-found",
   NO_AUTH_COOKIE: "no-auth-cookie",
-
-  REDIRECT_HOME: "/home",
+  INVALID_CREDS: "invalid-credentials",
 });
 
 module.exports = SERVER_RESPONSE;
