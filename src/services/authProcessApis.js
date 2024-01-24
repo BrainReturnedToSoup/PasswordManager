@@ -91,27 +91,16 @@ class Auth {
     return promise;
   }
 
-  deauthUser(jwtCookie) {
+  deauthUser(jwtToken) {
     const { promise, promiseID } = this.#createResponsePromise();
-    this.#sendMessage({ rule: AUTH_ENUMS.DEAUTH_USER, promiseID, jwtCookie });
+    this.#sendMessage({ rule: AUTH_ENUMS.DEAUTH_USER, promiseID, jwtToken });
 
     return promise;
   }
 
-  checkAuth(jwtCookie) {
+  checkAuth(jwtToken) {
     const { promise, promiseID } = this.#createResponsePromise();
-    this.#sendMessage({ rule: AUTH_ENUMS.CHECK_AUTH, promiseID, jwtCookie });
-
-    return promise;
-  }
-
-  renewToken(decodedToken) {
-    const { promise, promiseID } = this.#createResponsePromise();
-    this.#sendMessage({
-      rule: AUTH_ENUMS.RENEW_TOKEN,
-      promiseID,
-      decodedToken,
-    });
+    this.#sendMessage({ rule: AUTH_ENUMS.CHECK_AUTH, promiseID, jwtToken });
 
     return promise;
   }

@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const { authUser, checkAuth, renewToken, deauthUser } = require("./auth");
+const { authUser, checkAuth, deauthUser } = require("./auth");
 
 const AUTH_ENUMS = require("../enums/authProcessEnums");
 
@@ -25,11 +25,11 @@ async function authUserWrapper({ email, password, promiseID }) {
   process.send({ result, promiseID, error });
 }
 
-async function deauthUserWrapper({ jwtCookie, promiseID }) {
+async function deauthUserWrapper({ jwtToken, promiseID }) {
   let result, error;
 
   try {
-    result = await deauthUser(jwtCookie);
+    result = await deauthUser(jwtToken);
   } catch (err) {
     error = err;
   }
@@ -37,23 +37,11 @@ async function deauthUserWrapper({ jwtCookie, promiseID }) {
   process.send({ result, promiseID, error });
 }
 
-async function checkAuthWrapper({ jwtCookie, promiseID }) {
+async function checkAuthWrapper({ jwtToken, promiseID }) {
   let result, error;
 
   try {
-    result = await checkAuth(jwtCookie);
-  } catch (err) {
-    error = err;
-  }
-
-  process.send({ result, promiseID, error });
-}
-
-async function renewTokenWrapper({ decodedToken, promiseID }) {
-  let result, error;
-
-  try {
-    result = renewToken(decodedToken);
+    result = await checkAuth(jwtToken);
   } catch (err) {
     error = err;
   }
@@ -82,10 +70,6 @@ process.on(AUTH_ENUMS.MESSAGE, (args) => {
 
     case AUTH_ENUMS.CHECK_AUTH:
       checkAuthWrapper(args);
-      break;
-
-    case AUTH_ENUMS.RENEW_TOKEN:
-      renewTokenWrapper(args);
       break;
 
     default:

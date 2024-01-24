@@ -1,50 +1,61 @@
 const auth = require("../services/authProcessApis");
 
-const censorEmail = require("../utils/censorEmail");
-
 const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums");
+
+const cookieOptions = {
+  secure: true, //the cookie is only sent over https
+  httpOnly: true, //prevents client side JS from accessing the cookie
+  sameSite: "Strict", //prevents requests from different origins from using the cookie
+};
 
 //******************GET******************/
 
 //validate the token that is stored in the cookie, which involves checking
 //session validity, cryptographic operations, and comparing data that exists within
 //the token to what is within the DB
-async function validateAuth(req, res) {
+async function validateAuth(req, res, next) {
   if (!req.cookies.jwt) {
-    res.status(200).json({ success: true, auth: false }); //if the jwt cookie does not exist, then obviously not authenticated
+    res.status(200).json({ success: true, auth: false });
     return;
-  }
+  } //if there isn't a jwt cookie, then obviously not authed
 
   let result, error;
 
   try {
-    result = await auth.checkAuth(req.cookies.jwt); //doesn't throw errors, will only return flags.
+    result = await auth.checkAuth(req.cookies.jwt);
   } catch (err) {
+    console.error(`authStateMW: validateAuth catch block: ${err} ${err.stack}`);
     error = err;
   }
 
-  if (error) {
-    console.error(
-      "AUTH STATE VALIDATION: validateAuth - auth state POST catch block",
-      error,
-      error.stack
-    );
+  //native error in the main thread, or native or process error within the child thread
+  if (error || !result.success) {
     res
       .status(500)
       .json({ success: false, error: OUTBOUND_RESPONSE.VALIDATE_AUTH_FAILURE });
     return;
   }
 
-  if (!result.success) {
-    res.status(200).json({ success: true, auth: false }); //if the auth had an internal error
+  //if some type of data error occurred or the session has expired
+  if ((result.success && "error" in result) || !result.auth) {
+    res.status(500).json({ success: true, auth: false });
     return;
   }
 
-  res
-    .status(200)
-    .json({ success: true, auth: true, email: censorEmail(result.email) });
+  //up to this point means the session is still true
+  next();
 }
 
-const authStateMW = [validateAuth];
+//sending the new token to use for the next successful request
+function sendToken(req, res) {
+  const { newToken } = result; //put the auth token in cookies, and give the thumbs up to the user
 
-module.exports = authStateMW;
+  res
+    .status(200)
+    .cookies("jwt", newToken, cookieOptions)
+    .json({ success: true, auth: true });
+}
+
+const getAuthState = [validateAuth, sendToken];
+
+module.exports = getAuthState;

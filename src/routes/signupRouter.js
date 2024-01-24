@@ -1,7 +1,8 @@
 const router = require("express").Router();
 const cors = require("cors");
 
-const { signupGetMW, signupPostMW } = require("../middleware/signupMW");
+const serveBundle = require("../utils/serveBundle");
+const { handleSignup } = require("../middleware/signupMW");
 
 //**************CORS**************/
 
@@ -13,7 +14,7 @@ const postOptions = {
 
 //*************Routes**************/
 
-router.get("/", signupGetMW);
-router.post("/", cors(postOptions), signupPostMW);
+router.get("/", serveBundle);
+router.post("/", cors(postOptions), handleSignup);
 
 module.exports = router;

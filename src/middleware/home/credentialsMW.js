@@ -3,46 +3,45 @@ const auth = require("../../services/authProcessApis");
 //*****************AUTH******************/
 
 async function validateAuth(req, res, next) {
-  //if the jwt cookie does not exist, then obviously not authenticated
   if (!req.cookies.jwt) {
-    res.status(400).json({ success: false, auth: false });
+    res.status(400).json({
+      success: false,
+      auth: false,
+    });
     return;
-  }
+  } //if the jwt cookie does not exist, then obviously not authenticated
 
   let result, error;
 
   try {
-    result = await auth.checkAuth(req.cookies.jwt); //doesn't throw errors, will only return flags.
+    result = await auth.checkAuth(req.cookies.jwt);
   } catch (err) {
+    console.error(
+      `credentials common MW: validateAuth catch block: ${err} ${err.stack}`
+    );
     error = err;
   }
 
-  if (error) {
-    console.error(
-      "AUTH STATE VALIDATION: validateAuth - auth state POST catch block",
-      error,
-      error.stack
-    );
-    res.status(400).json({ success: false, error });
+  //native error in the main thread, or native or process error within the child thread
+  if (error || !result.success) {
+    res
+      .status(400)
+      .json({ success: false, error: OUTBOUND_RESPONSE.VALIDATE_AUTH_FAILURE });
     return;
   }
 
-  if (!result.success) {
-    res.status(400).json({ success: false, auth: false });
+  //if some type of data error occurred or the session has expired
+  if (result.success && "error" in result) {
+    res.satus(500).json({ success: false, auth: false });
     return;
   }
+
+  req.checkAuth = result; //pass the result to the next mw's to use
 
   next();
 }
 
 //******************GET******************/
-
-//specific endpoint get the corresponding credential IDs and their names for all present credentials, but
-//not the actual credential information.
-
-function getIdNameSet(req, res) {}
-
-const homeGetIdNameSetMW = [validateAuth, getIdNameSet];
 
 //specific endpoint to retrieve the actual credentials corresponding to the credential box on the screen.
 //This information is requested by clicking on a view button, which doesn't require storing any credentials
@@ -75,7 +74,6 @@ function deleteExistingCreds(req, res) {}
 const homePostDeleteExistingCredsMW = [validateAuth, deleteExistingCreds];
 
 module.exports = {
-  homeGetIdNameSetMW,
   homeGetCredentialPairMW,
   homePostAddNewCredsMW,
   homePostUpdateExistingCredsMW,

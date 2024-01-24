@@ -1,7 +1,8 @@
 const router = require("express").Router();
 const cors = require("cors");
 
-const { loginGetMW, loginPostMW } = require("../middleware/loginMW");
+const serveBundle = require("../utils/serveBundle");
+const { handleLogin } = require("../middleware/loginMW");
 
 //**************CORS**************/
 
@@ -13,7 +14,7 @@ const postOptions = {
 
 //*************Routes*************/
 
-router.get("/", loginGetMW);
-router.post("/", cors(postOptions), loginPostMW);
+router.get("/", serveBundle);
+router.post("/", cors(postOptions), handleLogin);
 
 module.exports = router;

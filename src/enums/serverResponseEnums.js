@@ -9,6 +9,7 @@ const SERVER_RESPONSE = Object.freeze({
   USER_NOT_FOUND: "user-not-found",
   NO_AUTH_COOKIE: "no-auth-cookie",
   INVALID_CREDS: "invalid-credentials",
+  INVALID_VALUE: "invalid-value",
 });
 
 module.exports = SERVER_RESPONSE;

@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const cors = require("cors");
 
-const checkCurrentAuthState = require("../middleware/authStateMW");
+const getAuthState = require("../middleware/authStateMW");
 
 //**************CORS**************/
 
@@ -13,6 +13,6 @@ const getOptions = {
 
 //*************Routes*************/
 
-router.get("/", cors(getOptions), checkCurrentAuthState);
+router.get("/", cors(getOptions), getAuthState);
 
 module.exports = router;

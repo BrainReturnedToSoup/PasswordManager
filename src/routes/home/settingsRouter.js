@@ -4,6 +4,7 @@ const {
   homePostNewPrefsMW,
   homePostDeleteAccMW,
   homePostNewPasswordMW,
+  homePostNewEmailMW,
   homePostVerifyEmailMW,
 } = require("../../middleware/home/settingsMW");
 
@@ -11,6 +12,7 @@ const {
 router.post("/new-preferences", homePostNewPrefsMW);
 router.post("/delete-account", homePostDeleteAccMW);
 router.post("/new-password", homePostNewPasswordMW);
+router.post("/new-email", homePostNewEmailMW);
 router.post("/verify-email", homePostVerifyEmailMW);
 
 module.exports = router;

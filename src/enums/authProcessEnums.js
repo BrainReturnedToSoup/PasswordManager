@@ -5,7 +5,6 @@ const AUTH_ENUMS = Object.freeze({
   AUTH_USER: "authUser",
   DEAUTH_USER: "deauthUser",
   CHECK_AUTH: "checkAuth",
-  RENEW_TOKEN: "renewToken",
 });
 
 module.exports = AUTH_ENUMS;

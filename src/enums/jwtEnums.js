@@ -9,6 +9,7 @@ const JWT_ERROR = Object.freeze({
 
   INVALID_JTI: "invalid-jti",
   JTI_UPDATE_FAILURE: "jti-update-failure",
+  TOKEN_RENEW_FAILURE: "token-renew-failure"
 });
 
 module.exports = { JWT_ERROR };
