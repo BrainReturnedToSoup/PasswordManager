@@ -106,7 +106,7 @@ async function createSession(req, res, next) {
 
   //for process and native errors on the child process side
   if (!result.success) {
-    res.status(500).json(result);
+    res.status(500).json(result); //contains { success: false, error }
     return;
   }
 

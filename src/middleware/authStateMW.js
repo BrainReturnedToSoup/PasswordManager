@@ -19,14 +19,23 @@ async function validateAuth(req, res, next) {
     return;
   } //if there isn't a jwt cookie, then obviously not authed
 
-  let result, error;
+  let result,
+    error,
+    retries = 0;
 
-  try {
-    result = await auth.checkAuth(req.cookies.jwt);
-  } catch (err) {
-    console.error(`authStateMW: validateAuth catch block: ${err} ${err.stack}`);
-    error = err;
-  }
+  //RETRY MECHANISM
+  do {
+    retries++;
+
+    try {
+      result = await auth.checkAuth(req.cookies.jwt);
+    } catch (err) {
+      console.error(
+        `authStateMW: validateAuth catch block: ${err} ${err.stack}`
+      );
+      error = err;
+    }
+  } while (!result.success && retries < 2);
 
   //native error in the main thread, or native or process error within the child thread
   if (error || !result.success) {
@@ -42,13 +51,16 @@ async function validateAuth(req, res, next) {
     return;
   }
 
+  //pass the new token in the req to be used next
+  req.newToken = result.newToken;
+
   //up to this point means the session is still true
   next();
 }
 
 //sending the new token to use for the next successful request
 function sendToken(req, res) {
-  const { newToken } = result; //put the auth token in cookies, and give the thumbs up to the user
+  const { newToken } = req; //put the auth token in cookies, and give the thumbs up to the user
 
   res
     .status(200)

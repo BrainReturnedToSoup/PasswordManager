@@ -1,7 +1,6 @@
 const router = require("express").Router();
 
 const {
-  homeGetIdNameSetMW,
   homeGetCredentialPairMW,
   homePostAddNewCredsMW,
   homePostUpdateExistingCredsMW,
@@ -10,7 +9,6 @@ const {
 
 //*************Routes*************/
 
-router.get("/id-name-set", homeGetIdNameSetMW); //for getting only the credential ID and high level name, as the credential data isn't stored on the client
 router.get("/pair", homeGetCredentialPairMW); //for getting the actual credential pair corresponding to the credential ID
 
 router.post("/new", homePostAddNewCredsMW); //for adding new credentials to your account

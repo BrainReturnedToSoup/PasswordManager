@@ -67,6 +67,6 @@ async function attemptLogout(req, res) {
   res.status(200).clearCookie("jwt").json(result); //will return { success: true }
 }
 
-const logoutPostMW = [validateAuth, attemptLogout];
+const handleLogoutMW = [validateAuth, attemptLogout];
 
-module.exports = logoutPostMW;
+module.exports = handleLogoutMW;

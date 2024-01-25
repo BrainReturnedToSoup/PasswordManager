@@ -1,5 +1,6 @@
 const pool = require("../services/postgresql.js");
 
+const jwt = require("jsonwebtoken");
 const { v4: uuid } = require("uuid");
 
 const { JWT_ERROR } = require("../enums/jwtEnums.js");
@@ -19,7 +20,7 @@ const tokenSessionManager = new TokenSessionManager();
 //**********GET-PASSWORD**************/
 
 //for authUser
-async function getUserPassword(email) {
+async function getUuidAndPassword(email) {
   let connection, result, error;
 
   //****INSTANT-CONNECTION-TERMINATION****/
@@ -46,7 +47,7 @@ async function getUserPassword(email) {
     throw new DataError(JWT_ERROR.USER_NOT_FOUND);
   }
 
-  return result.pw;
+  return result;
 }
 
 //**********RENEW-TOKEN***************/
@@ -128,9 +129,9 @@ async function validateDecodedToken(decodedToken) {
 //with the token, it's easy to decrypt the encrypted user UUID, and make the necessary JTI updates
 
 //for checkAuth
-function createSession(uuid) {
+function createSession(suppliedUUID) {
   const startingJti = uuid(), //JTI for new token corresponding to the new session
-    { encryptedString: encryptedUUID, newHexIV } = encryptData(uuid);
+    { encryptedString: encryptedUUID, newHexIV } = encryptData(suppliedUUID);
 
   const success = tokenSessionManager.createSession(startingJti, newHexIV);
 
@@ -168,7 +169,7 @@ function generateExpirationTime() {
 }
 
 module.exports = {
-  getUserPassword,
+  getUuidAndPassword,
   renewToken,
   validateDecodedToken,
   terminateSession,

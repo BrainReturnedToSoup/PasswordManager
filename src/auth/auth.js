@@ -5,7 +5,7 @@ const { JWT_ERROR } = require("../enums/jwtEnums.js");
 const { DataError } = require("./customErrors.js");
 
 const {
-  getUserPassword,
+  getUuidAndPassword,
   renewToken,
   validateDecodedToken,
   terminateSession,
@@ -19,8 +19,8 @@ const {
 //a session or return a rejection
 async function authUser(email, password) {
   try {
-    const retrievedPassword = await getUserPassword(email),
-      match = await bcrypt.compare(password, retrievedPassword);
+    const result = await getUuidAndPassword(email),
+      match = await bcrypt.compare(password, result.pw);
 
     if (!match) {
       throw new DataError(JWT_ERROR.INVALID_CREDS);

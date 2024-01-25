@@ -1,8 +1,8 @@
 const router = require("express").Router();
 
-const logoutPostMW = require("../../middleware/home/logoutMW");
+const handleLogoutMW = require("../../middleware/home/logoutMW");
 
 //just for a regular logout request
-router.post("/", logoutPostMW);
+router.post("/", handleLogoutMW);
 
 module.exports = router;

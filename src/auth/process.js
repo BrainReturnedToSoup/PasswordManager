@@ -74,7 +74,7 @@ process.on(AUTH_ENUMS.MESSAGE, (args) => {
 
     default:
       console.error(
-        `Child Process - Auth: Received invalid rule for as argument, received ${rule}`
+        `auth child process: received invalid rule for as argument, received ${rule}`
       );
       process.send({ error: "invalid-auth-rule" });
   }

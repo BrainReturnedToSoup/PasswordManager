@@ -5,7 +5,7 @@ function validateEmailVal(email) {
     .email({ minDomainSegments: 2, tlds: { allow: ["com", "net"] } })
     .required();
 
-  const validationResult = Joi.validate(email, emailSchema);
+  const validationResult = emailSchema.validate(email);
 
   return validationResult.error !== null;
 }
@@ -19,7 +19,7 @@ function validatePasswordVal(password) {
     )
     .required();
 
-  const validationResult = Joi.validate(password, passwordSchema);
+  const validationResult = passwordSchema.validate(password);
 
   return validationResult.error !== null;
 }
@@ -32,7 +32,7 @@ function validateSettingsObj(preferencesObj) {
     sessionLengthMinutes: Joi.number().valid(5, 10, 15, 30).required(),
   });
 
-  const validationResult = Joi.validate(preferencesObj, preferencesSchema);
+  const validationResult = preferencesSchema.validate(preferencesObj);
 
   return validationResult.error !== null;
 }
