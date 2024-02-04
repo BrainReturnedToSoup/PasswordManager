@@ -1,18 +1,17 @@
 const router = require("express").Router();
 
-const {
-  homeGetCredentialPairMW,
-  homePostAddNewCredsMW,
-  homePostUpdateExistingCredsMW,
-  homePostDeleteExistingCredsMW,
-} = require("../../middleware/home/credentialsMW");
+const getCredentialMW = require("../../middleware/home/credentials/getCredential"),
+  addCredentialMW = require("../../middleware/home/credentials/addCredential"),
+  updateCredentialMW = require("../../middleware/home/credentials/updateCredential"),
+  deleteCredentialMW = require("../../middleware/home/credentials/deleteCredential");
 
-//*************Routes*************/
+const getIdAndNameSetMW = require("../../middleware/home/credentials/getIdAndNameSet");
 
-router.get("/pair", homeGetCredentialPairMW); //for getting the actual credential pair corresponding to the credential ID
+router.get("/", getCredentialMW); //for getting the actual credential pair corresponding to the credential ID
+router.post("/", addCredentialMW); //for adding new credentials to your account
+router.put("/", updateCredentialMW); //for updating existing credentials with new values within your account
+router.delete("/", deleteCredentialMW); //for deleting existing credentials from your account
 
-router.post("/new", homePostAddNewCredsMW); //for adding new credentials to your account
-router.post("/update", homePostUpdateExistingCredsMW); //for updating existing credentials with new values within your account
-router.post("/delete", homePostDeleteExistingCredsMW); //for deleting existing credentials from your account
+router.get("/id-name-set", getIdAndNameSetMW); //for getting the set of ID's and names linked to the corresponding session. NOT THE ACTUAL CREDENTIALS
 
 module.exports = router;

@@ -55,7 +55,7 @@ async function validateAuth(req, res, next) {
     }
 
     //everything else means the user is already authed, continue the auth cycle with new token
-    res.status(400).cookies("jwt", result.newToken, cookieOptions).json({
+    res.status(400).cookie("jwt", result.newToken, cookieOptions).json({
       success: false,
       auth: true,
     });
@@ -174,8 +174,8 @@ async function addNewUser(req, res, next) {
     console.error(`signupMW: addNewUser catch block: ${err} ${err.stack}`);
     error = err;
   } finally {
-    if (connection && typeof connection.release === "function") {
-      connection.release();
+    if (connection) {
+      connection.done();
     } //always release the connection as soon as possible
   }
 

@@ -1,8 +1,8 @@
 const pool = require("../../../services/postgresql.js");
-
 const bcrypt = require("bcrypt");
 
 const { validateAuth, clearSession } = require("./common/auth.js");
+const { errorResponse } = require("./common/errorResponse.js");
 
 const {
   validateEmailVal,
@@ -30,10 +30,7 @@ function validatePayload(req, res, next) {
        email: ${oldEmail} password: ${password}`
     );
 
-    res.status(500).json({
-      success: false,
-      error: OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE,
-    });
+    errorResponse(req, res, 500, OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE);
     return;
   }
 
@@ -64,13 +61,13 @@ async function queryStoredCredentials(req, res, next) {
     );
     error = err;
   } finally {
-    if (connection && typeof connection.release === "function") {
-      connection.release();
+    if (connection) {
+      connection.done();
     } //always release the connection as soon as possible
   }
 
   if (error) {
-    res.status(500).json({ success: false, error });
+    errorResponse(req, res, 500, error);
     return;
   }
 
@@ -85,9 +82,7 @@ async function compareCredentials(req, res, next) {
     { email, pw: encryptedPassword } = req.query;
 
   if (oldEmail !== email) {
-    res
-      .status(400)
-      .json({ success: false, error: OUTBOUND_RESPONSE.INVALID_CREDS });
+    errorResponse(req, res, 500, OUTBOUND_RESPONSE.INVALID_CREDS);
     return;
   }
 
@@ -95,20 +90,17 @@ async function compareCredentials(req, res, next) {
     const match = await bcrypt.compare(password, encryptedPassword);
 
     if (!match) {
-      res
-        .status(500)
-        .json({ success: false, error: OUTBOUND_RESPONSE.INVALID_CREDS });
+      errorResponse(req, res, 500, OUTBOUND_RESPONSE.INVALID_CREDS);
       return;
     }
-
-    next();
   } catch (error) {
     console.error(
       `setNewEmailMW: compareCredentials catch block: ${error} ${error.stack}`
     );
-
-    res.status(500).json({ success: false, error });
+    errorResponse(req, res, 500, error);
   }
+
+  next();
 }
 
 //update the db to have the new email instead, and also
@@ -142,13 +134,13 @@ async function setNewEmail(req, res, next) {
     );
     error = err;
   } finally {
-    if (connection && typeof connection.release === "function") {
-      connection.release();
+    if (connection) {
+      connection.done();
     } //always release the connection as soon as possible
   }
 
   if (error) {
-    res.status(500).json({ success: false, error });
+    errorResponse(req, res, 500, error);
     return;
   }
 

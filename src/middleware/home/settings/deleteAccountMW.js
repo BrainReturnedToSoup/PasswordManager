@@ -1,8 +1,8 @@
 const pool = require("../../../services/postgresql.js");
-
 const bcrypt = require("bcrypt");
 
 const { validateAuth } = require("./common/auth.js");
+const { errorResponse } = require("./common/errorResponse.js");
 
 const {
   validateEmailVal,
@@ -27,10 +27,7 @@ function validatePayload(req, res, next) {
          email: ${email} password: ${password}`
     );
 
-    res.status(500).json({
-      success: false,
-      error: OUTBOUND_RESPONSE.INVALID_CREDS,
-    });
+    errorResponse(req, res, 500, OUTBOUND_RESPONSE.INVALID_VALUE);
     return;
   }
 
@@ -39,7 +36,7 @@ function validatePayload(req, res, next) {
 
 //query the corresponding email and password linked to the session, which is
 //done using the returned UUID in the auth check
-async function queryStoredCredentials(req, res, next) {
+async function queryStoredCreds(req, res, next) {
   const { uuid } = req.checkAuth;
 
   let connection, result, error;
@@ -60,13 +57,13 @@ async function queryStoredCredentials(req, res, next) {
     console.error(`deleteAccoutMW: compareCredentials: ${err} ${err.stack}`);
     error = err;
   } finally {
-    if (connection && typeof connection.release === "function") {
-      connection.release();
+    if (connection) {
+      connection.done();
     } //always release the connection as soon as possible
   }
 
   if (error) {
-    res.status(500).json({ success: false, error });
+    errorResponse(req, res, 500, error);
     return;
   }
 
@@ -82,36 +79,32 @@ async function compareCreds(req, res, next) {
     { email, password } = req.body;
 
   if (email !== retrievedEmail) {
-    res
-      .status(500)
-      .json({ success: false, error: OUTBOUND_RESPONSE.INVALID_CREDS });
+    errorResponse(req, res, 500, OUTBOUND_RESPONSE.INVALID_CREDS);
     return;
   }
 
   try {
-    const match = bcrypt.compare(password, encryptedPassword);
+    const match = await bcrypt.compare(password, encryptedPassword);
 
     if (!match) {
-      res
-        .status(500)
-        .json({ success: false, error: OUTBOUND_RESPONSE.INVALID_CREDS });
+      errorResponse(req, res, 500, OUTBOUND_RESPONSE.INVALID_CREDS);
       return;
     }
-
-    next();
   } catch (error) {
     console.error(
       `deleteAccountMW: compareCreds catch block: ${error} ${error.stack}`
     );
-    res.status(500).json({ success: false, error });
+    errorResponse(req, res, 500, error);
   }
+
+  next();
 }
 
 //This deletes their login as well as all corresponding credentials stored in the DB.
 //Also, don't need to clear the session, as the session depends
 //on the DB information that was already cleared
 async function deleteAccount(req, res) {
-  const { email } = req.body;
+  const { uuid } = req.checkAuth;
 
   let connection, error;
 
@@ -121,20 +114,15 @@ async function deleteAccount(req, res) {
 
     await connection.query("BEGIN"); //ensures the query is a transaction
 
-    const { user_uuid } = await connection.oneOrNone(
-      `SELECT user_uuid FROM users WHERE email = $1`,
-      [email]
-    );
-
     await connection.query(`DELETE FROM credentials WHERE user_uuid = $1`, [
-      user_uuid,
+      uuid,
     ]);
+
     await connection.query(`DELETE FROM user_settings WHERE user_uuid = $1`, [
-      user_uuid,
+      uuid,
     ]);
-    await connection.query(`DELETE FROM users WHERE user_uuid = $1`, [
-      user_uuid,
-    ]); //THIS LAST FOR REF INTEGRITY
+
+    await connection.query(`DELETE FROM users WHERE user_uuid = $1`, [uuid]); //THIS LAST FOR REF INTEGRITY
 
     await connection.query("COMMIT"); //ensures the query is a transaction
   } catch (err) {
@@ -143,13 +131,13 @@ async function deleteAccount(req, res) {
     );
     error = err;
   } finally {
-    if (connection && typeof connection.release === "function") {
-      connection.release();
+    if (connection) {
+      connection.done();
     } //always release the connection as soon as possible
   }
 
   if (error) {
-    res.status(500).json({ success: false, error });
+    errorResponse(req, res, 500, error);
     return;
   }
 
@@ -159,7 +147,7 @@ async function deleteAccount(req, res) {
 const deleteAccountMW = [
   validateAuth,
   validatePayload,
-  queryStoredCredentials,
+  queryStoredCreds,
   compareCreds,
   deleteAccount,
 ];

@@ -33,8 +33,8 @@ async function getUuidAndPassword(email) {
   } catch (err) {
     error = err;
   } finally {
-    if (connection && typeof connection.release === "function") {
-      connection.release();
+    if (connection) {
+      connection.done();
     } //always release the connection as soon as possible
   }
 
@@ -101,8 +101,8 @@ async function validateDecodedToken(decodedToken) {
   } catch (err) {
     error = err;
   } finally {
-    if (connection && typeof connection.release === "function") {
-      connection.release();
+    if (connection) {
+      connection.done();
     } //always release the connection as soon as possible
   }
 

@@ -64,10 +64,10 @@ function sendToken(req, res) {
 
   res
     .status(200)
-    .cookies("jwt", newToken, cookieOptions)
+    .cookie("jwt", newToken, cookieOptions)
     .json({ success: true, auth: true });
 }
 
-const getAuthState = [validateAuth, sendToken];
+const getAuthStateMW = [validateAuth, sendToken];
 
-module.exports = getAuthState;
+module.exports = getAuthStateMW;

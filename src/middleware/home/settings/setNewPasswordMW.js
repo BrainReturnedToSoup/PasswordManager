@@ -1,10 +1,11 @@
 const pool = require("../../../services/postgresql.js");
 
+const promisify = require("util").promisify;
 const bcrypt = require("bcrypt"),
   bcryptHash = promisify(bcrypt.hash);
 
 const { validateAuth, clearSession } = require("./common/auth.js");
-
+const { errorResponse } = require("./common/errorResponse.js");
 const { validatePasswordVal } = require("../../../utils/inputValidation.js");
 
 const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums");
@@ -27,10 +28,7 @@ async function validatePayload(req, res, next) {
        oldPassword: ${oldPassword} newPassword: ${newPassword}`
     );
 
-    res.status(500).json({
-      success: false,
-      error: OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE,
-    });
+    errorResponse(req, res, 500, OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE);
     return;
   }
 
@@ -61,13 +59,13 @@ async function queryStoredPassword(req, res, next) {
     );
     error = err;
   } finally {
-    if (connection && typeof connection.release === "function") {
-      connection.release();
+    if (connection) {
+      connection.done();
     } //always release the connection as soon as possible
   }
 
   if (error) {
-    res.status(500).json({ success: false, error });
+    errorResponse(req, res, 500, error);
     return;
   }
 
@@ -82,27 +80,18 @@ async function comparePasswords(req, res, next) {
   const { oldPassword } = req.body,
     { pw: encryptedPassword } = req.query;
 
-  let match, error;
-
   try {
-    match = await bcrypt.compare(oldPassword, encryptedPassword);
-  } catch (err) {
+    const match = await bcrypt.compare(oldPassword, encryptedPassword);
+
+    if (!match) {
+      errorResponse(req, res, 500, OUTBOUND_RESPONSE.INVALID_CREDS);
+      return;
+    }
+  } catch (error) {
     console.error(
-      `setNewPasswordMW: comparePasswords catch block: ${err} ${err.stack}`
+      `setNewPasswordMW: comparePasswords catch block: ${error} ${error.stack}`
     );
-    error = err;
-  }
-
-  if (error) {
-    res.status(500).json({ success: false, error });
-    return;
-  }
-
-  if (!match) {
-    res
-      .status(500)
-      .json({ success: false, error: OUTBOUND_RESPONSE.INVALID_CREDS });
-    return;
+    errorResponse(req, res, 500, error);
   }
 
   next();
@@ -118,14 +107,14 @@ async function hashNewPassword(req, res, next) {
       newPassword,
       parseInt(process.env.BCRYPT_SR)
     );
-
-    next();
   } catch (error) {
     console.error(
       `setNewPasswordMW: hashPassword catch block: ${error} ${error.stack}`
     );
-    res.status(500).json({ success: false, error });
+    errorResponse(req, res, 500, error);
   }
+
+  next();
 }
 
 //take the hashed new password from previously and overwrite the
@@ -153,13 +142,13 @@ async function setNewPassword(req, res, next) {
     );
     error = err;
   } finally {
-    if (connection && typeof connection.release === "function") {
-      connection.release();
+    if (connection) {
+      connection.done();
     } //always release the connection as soon as possible
   }
 
   if (error) {
-    res.status(500).json({ success: false, error });
+    errorResponse(req, res, 500, error);
     return;
   }
 

@@ -1,10 +1,16 @@
 const pool = require("../../../services/postgresql.js");
 
 const { validateAuth } = require("./common/auth.js");
-
 const { validateSettingsObj } = require("../../../utils/inputValidation.js");
+const { errorResponse } = require("./common/errorResponse.js");
 
 const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums.js");
+
+const cookieOptions = {
+  secure: true, //the cookie is only sent over https
+  httpOnly: true, //prevents client side JS from accessing the cookie
+  sameSite: "Strict", //prevents requests from different origins from using the cookie
+};
 
 //******UPDATE-SETTINGS*****/
 
@@ -14,9 +20,7 @@ function validatePayload(req, res, next) {
 
   //if one of the input properties is not of a valid value
   if (!valid) {
-    res
-      .status(500)
-      .json({ success: false, error: OUTBOUND_RESPONSE.INVALID_VALUE });
+    errorResponse(req, res, 500, OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE);
     return;
   }
 
@@ -25,7 +29,7 @@ function validatePayload(req, res, next) {
 
 //for handling a request containing the most up to date rendition of user settings, which is sent when
 //the user makes a change to any portion of the settings that relies on state.
-async function updateSettings(req, res) {
+async function updateSettings(req, res, next) {
   const { fontScale, themeSelected, lazyLoading, sessionLengthMinutes } =
     req.body;
 
@@ -39,11 +43,11 @@ async function updateSettings(req, res) {
     await connection.query(
       `
         UPDATE user_settings 
-        SET font_scale = $2,
-            theme_selected = $3,
-            lazy_loading = $4,
-            session_length_minutes = $5
-        WHERE user_uuid = $6
+        SET font_scale = $1,
+            theme_selected = $2,
+            lazy_loading = $3,
+            session_length_minutes = $4
+        WHERE user_uuid = $5
      `,
       [fontScale, themeSelected, lazyLoading, sessionLengthMinutes, uuid]
     );
@@ -53,19 +57,33 @@ async function updateSettings(req, res) {
     );
     error = err;
   } finally {
-    if (connection && typeof connection.release === "function") {
-      connection.release();
+    if (connection) {
+      connection.done();
     } //always release the connection as soon as possible
   }
 
   if (error) {
-    res.status(500).json({ success: false, error });
+    errorResponse(req, res, 500, error);
     return;
   }
 
-  res.status(200).json({ success: true });
+  next();
 }
 
-const updateSettingsMW = [validateAuth, validatePayload, updateSettings];
+function renewToken(req, res) {
+  const { newToken } = req.checkAuth;
+
+  res
+    .status(200)
+    .cookie("jwt", newToken, cookieOptions)
+    .json({ success: true });
+}
+
+const updateSettingsMW = [
+  validateAuth,
+  validatePayload,
+  updateSettings,
+  renewToken,
+];
 
 module.exports = updateSettingsMW;

@@ -1,12 +1,12 @@
 const router = require("express").Router();
+
 const cors = require("cors");
 
 const { homeGetMW } = require("../../middleware/home/homeMW");
 
 const logoutRouter = require("./logoutRouter"),
   settingsRouter = require("./settingsRouter"),
-  credentialsRouter = require("./credentialsRouter"),
-  userDataRouter = require("./userDataRouter");
+  credentialsRouter = require("./credentialsRouter");
 
 //**************CORS**************/
 
@@ -24,6 +24,5 @@ router.get("/", homeGetMW); //for the home page
 router.use("/log-out", cors(postOptions), logoutRouter);
 router.use("/settings", cors(postOptions), settingsRouter);
 router.use("/credentials", cors(postOptions), credentialsRouter);
-router.use("/user-data", cors(postOptions), userDataRouter);
 
 module.exports = router;

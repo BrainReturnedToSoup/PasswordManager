@@ -49,7 +49,7 @@ async function validateAuth(req, res, next) {
     }
 
     //everything else means the user is already authed, continue the auth cycle with new token
-    res.status(400).cookies("jwt", result.newToken, cookieOptions).json({
+    res.status(400).cookie("jwt", result.newToken, cookieOptions).json({
       success: false,
       auth: true,
     });
