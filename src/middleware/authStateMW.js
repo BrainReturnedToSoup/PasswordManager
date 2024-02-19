@@ -24,6 +24,7 @@ async function validateAuth(req, res, next) {
     retries = 0;
 
   //RETRY MECHANISM
+  //only retries one additional time
   do {
     retries++;
 

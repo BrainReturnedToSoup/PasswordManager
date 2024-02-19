@@ -1,11 +1,9 @@
 const router = require("express").Router();
-
 const cors = require("cors");
 
-const { homeGetMW } = require("../../middleware/home/homeMW");
-
+const homeGetMW = require("../../middleware/home/homeMW");
 const logoutRouter = require("./logoutRouter"),
-  settingsRouter = require("./settingsRouter"),
+  settingsRouter = require("./settings/settingsRouter"),
   credentialsRouter = require("./credentialsRouter");
 
 //**************CORS**************/

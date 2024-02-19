@@ -1,8 +1,8 @@
 const router = require("express").Router();
 const cors = require("cors");
+const serveBundle = require("./_common/serveBundle");
 
-const serveBundle = require("../utils/serveBundle");
-const { handleSignup } = require("../middleware/signupMW");
+const handleSignup = require("../middleware/signupMW");
 
 //**************CORS**************/
 

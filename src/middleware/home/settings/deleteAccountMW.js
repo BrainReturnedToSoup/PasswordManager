@@ -1,13 +1,9 @@
 const pool = require("../../../services/postgresql.js");
 const bcrypt = require("bcrypt");
 
-const { validateAuth } = require("./common/auth.js");
-const { errorResponse } = require("./common/errorResponse.js");
-
-const {
-  validateEmailVal,
-  validatePasswordVal,
-} = require("../../../utils/inputValidation.js");
+const { validateAuth } = require("./_common/auth.js");
+const errorResponse = require("./_common/errorResponse.js");
+const { constraintValidation } = require("../../../utils/inputValidation.js");
 
 const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums.js");
 
@@ -15,12 +11,10 @@ const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums.js");
 function validatePayload(req, res, next) {
   const { email, password } = req.body;
 
-  const emailValid = validateEmailVal(email),
-    passwordValid = validatePasswordVal(password);
+  const emailValid = constraintValidation.email(email),
+    passwordValid = constraintValidation.password(password);
 
-  const valid = emailValid && passwordValid;
-
-  if (!valid) {
+  if (!emailValid || !passwordValid) {
     console.error(
       `deleteAccountMW: validateCredentials: constraint validation failure:
          email_valid: ${emailValid} password_valid: ${passwordValid}
@@ -34,8 +28,7 @@ function validatePayload(req, res, next) {
   next(); //everything that was supplied in the input fields match what is associated with the current session
 }
 
-//query the corresponding email and password linked to the session, which is
-//done using the returned UUID in the auth check
+//query the corresponding email and password linked to the session, which is done using the returned UUID in the auth check
 async function queryStoredCreds(req, res, next) {
   const { uuid } = req.checkAuth;
 

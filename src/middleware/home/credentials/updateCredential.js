@@ -1,7 +1,5 @@
-const { validateAuth } = require("./common/auth");
-
-const { errorResponse } = require("./common/errorResponse.js");
-
+const validateAuth = require("./_common/auth.js");
+const errorResponse = require("./_common/errorResponse.js");
 const { inputValidation } = require("../../../utils/inputValidation");
 
 const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums.js");

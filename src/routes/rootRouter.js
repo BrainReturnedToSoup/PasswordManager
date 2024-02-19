@@ -1,16 +1,15 @@
 const router = require("express").Router();
 
-const rootMW = require("../middleware/rootMW");
-
 const loginRouter = require("./loginRouter"),
   signupRouter = require("./signupRouter"),
   homeRouter = require("./home/homeRouter"),
   authStateRouter = require("./authStateRouter");
 
+const rootMW = require("../middleware/rootMW");
+
 //*************Routes*************/
 
-//serves the client bundle SPA starting at the root
-//page. The redirect will occur on the client
+//serves the client bundle SPA starting at the root page. The redirect will occur on the client
 router.get("/", rootMW);
 
 router.use("/log-in", loginRouter);

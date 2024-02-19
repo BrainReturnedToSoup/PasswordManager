@@ -1,7 +1,7 @@
-const serveBundle = require("../../utils/serveBundle");
+const serveBundle = require("../../routes/_common/serveBundle");
 
 //******************GET******************/
 
 const homeGetMW = [serveBundle];
 
-module.exports = { homeGetMW };
+module.exports = homeGetMW;

@@ -1,7 +1,5 @@
-const { validateAuth } = require("./common/auth");
-
-const { errorResponse } = require("./common/errorResponse.js");
-
+const validateAuth = require("./_common/auth.js");
+const errorResponse = require("./_common/errorResponse.js");
 const { inputValidation } = require("../../../utils/inputValidation");
 
 const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums.js");
@@ -18,7 +16,13 @@ const cookieOptions = {
 //as the identifier for the information
 
 function validatePayload(req, res, next) {
-  const valid = inputValidation.deleteCredential(req.body);
+  if (!req.query.credentialID) {
+    console.error(`deleteCredential validatePayload error: no-credentialID`);
+    errorResponse(req, res, 500, OUTBOUND_RESPONSE.INVALID_VALUE);
+    return;
+  }
+
+  const valid = inputValidation.deleteCredential(req.query.credentialID);
 
   if (!valid) {
     console.error(`deleteCredential validatePayload error: invalid-value`);
@@ -30,7 +34,7 @@ function validatePayload(req, res, next) {
 }
 
 async function deleteCredential(req, res, next) {
-  const { credentialID } = req.body,
+  const { credentialID } = req.query,
     { uuid } = req.checkAuth;
 
   let connection, error;
@@ -42,7 +46,7 @@ async function deleteCredential(req, res, next) {
       `
         DELETE FROM credentials
         WHERE user_uuid = $1
-        AND credential_id = $1
+          AND credential_id = $2
     `,
       [uuid, credentialID]
     );

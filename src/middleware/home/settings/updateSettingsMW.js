@@ -1,8 +1,8 @@
 const pool = require("../../../services/postgresql.js");
 
-const { validateAuth } = require("./common/auth.js");
-const { validateSettingsObj } = require("../../../utils/inputValidation.js");
-const { errorResponse } = require("./common/errorResponse.js");
+const { validateAuth } = require("./_common/auth.js");
+const errorResponse = require("./_common/errorResponse.js");
+const { inputValidation } = require("../../../utils/inputValidation.js");
 
 const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums.js");
 
@@ -16,13 +16,12 @@ const cookieOptions = {
 
 //input/constraint validation
 function validatePayload(req, res, next) {
-  const valid = validateSettingsObj(req.body);
+  const valid = inputValidation.updateSettings(req.body);
 
-  //if one of the input properties is not of a valid value
   if (!valid) {
     errorResponse(req, res, 500, OUTBOUND_RESPONSE.CONSTR_VALIDATION_FAILURE);
     return;
-  }
+  } //if one of the input properties is not of a valid value
 
   next();
 }

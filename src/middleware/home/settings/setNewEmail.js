@@ -1,13 +1,9 @@
 const pool = require("../../../services/postgresql.js");
 const bcrypt = require("bcrypt");
 
-const { validateAuth, clearSession } = require("./common/auth.js");
-const { errorResponse } = require("./common/errorResponse.js");
-
-const {
-  validateEmailVal,
-  validatePasswordVal,
-} = require("../../../utils/inputValidation.js");
+const { validateAuth, clearSession } = require("./_common/auth.js");
+const errorResponse = require("./_common/errorResponse.js");
+const { constraintValidation } = require("../../../utils/inputValidation.js");
 
 const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums");
 
@@ -17,13 +13,11 @@ const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums");
 function validatePayload(req, res, next) {
   const { oldEmail, password, newEmail } = req.body;
 
-  const validEmail = validateEmailVal(oldEmail),
-    validPassword = validatePasswordVal(password),
-    validNewEmail = validateEmailVal(newEmail);
+  const validEmail = constraintValidation.email(oldEmail),
+    validPassword = constraintValidation.password(password),
+    validNewEmail = constraintValidation.email(newEmail);
 
-  const valid = validEmail && validPassword && validNewEmail;
-
-  if (!valid) {
+  if (!validEmail || !validPassword || !validNewEmail) {
     console.error(
       `setNewEmailMW: validatePayloadNewEmail:
        email_valid: ${validEmail} password_valid: ${validPassword}

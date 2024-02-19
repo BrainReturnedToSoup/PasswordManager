@@ -1,7 +1,5 @@
-const { validateAuth } = require("./common/auth");
-
-const { errorResponse } = require("./common/errorResponse.js");
-
+const validateAuth = require("./_common/auth.js");
+const errorResponse = require("./_common/errorResponse.js");
 const { inputValidation } = require("../../../utils/inputValidation");
 
 const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums.js");
@@ -14,12 +12,14 @@ const cookieOptions = {
   sameSite: "Strict", //prevents requests from different origins from using the cookie
 };
 
-//specific endpoint to retrieve the actual credentials corresponding to the credential box on the screen.
-//This information is requested by clicking on a view button, which doesn't require storing any credentials
-//in client state itself, just their IDs that normalize to the information on the server
-
 function validatePayload(req, res, next) {
-  const valid = inputValidation.getCredential(req.body);
+  if (!req.query.credentialID) {
+    console.error(`getCredential validatePayload error: no-credentialID`);
+    errorResponse(req, res, 500, OUTBOUND_RESPONSE.INVALID_VALUE);
+    return;
+  }
+
+  const valid = inputValidation.getCredential(req.query.credentialID);
 
   if (!valid) {
     console.error(`getCredential validatePayload error: invalid-value`);
@@ -31,33 +31,34 @@ function validatePayload(req, res, next) {
 }
 
 async function getCredential(req, res, next) {
-  const { credentialID } = req.body;
+  const { credentialID } = req.query,
+    { uuid } = req.checkAuth;
 
   let connection, result, error;
 
   try {
     connection = await pool.connect();
 
-    await connection.oneOrNone(
+    result = await connection.oneOrNone(
       `
-      SELECT 
+      SELECT
         credential_name,
         email_username,
-        pw
+        pw,
+        description
       FROM credentials
-      WHERE credential_id = $1
-      `,
-      [credentialID]
+      WHERE user_uuid = $1
+        AND credential_id = $2
+        `,
+      [uuid, credentialID]
     );
   } catch (err) {
-    console.error(
-      `getCredential: getCredential catch block: ${err} ${err.stack}`
-    );
+    console.error(`getCredential catch block: ${err} ${err.stack}`);
     error = err;
   } finally {
     if (connection) {
       connection.done();
-    } //always release the connection as soon as possible
+    }
   }
 
   if (error) {
@@ -67,7 +68,7 @@ async function getCredential(req, res, next) {
 
   req.credential = result;
 
-  next();
+  next();   
 }
 
 function renewToken(req, res) {
@@ -75,16 +76,11 @@ function renewToken(req, res) {
     { credential } = req;
 
   res
-    .status(500)
+    .status(200)
     .cookie("jwt", newToken, cookieOptions)
     .json({ success: true, credential });
 }
 
-const getCredentialMW = [
-  validateAuth,
-  validatePayload,
-  getCredential,
-  renewToken,
-];
+const getCredentialMW = [validateAuth, getCredential, renewToken];
 
 module.exports = getCredentialMW;

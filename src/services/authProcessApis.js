@@ -2,7 +2,6 @@ const { fork } = require("child_process"),
   path = require("path"); //for proper module fork directory
 
 const { v4: uuid } = require("uuid");
-
 const AUTH_ENUMS = require("../enums/authProcessEnums");
 
 const promiseTimeoutMs = 20000;
@@ -30,7 +29,7 @@ class Auth {
         this.promiseTimeout.delete(promiseID);
 
         console.error(`IPC PROMISE TIMEOUT: a promise for an action to be taken by 
-        the Authentication child process timed out before receiving a response, promiseID: ${promiseID}`);
+          the Authentication child process timed out before receiving a response, promiseID: ${promiseID}`);
       }, promiseTimeoutMs); //reject the promise after 20 seconds automatically
 
       this.promiseTimeout.set(promiseID, promiseTimeout);
@@ -60,7 +59,9 @@ class Auth {
     try {
       this.childProcess.send(payload);
     } catch (error) {
-      console.error("Auth child process messaging failure", error, error.stack);
+      console.error(
+        `Auth child process messaging failure: error: ${error} stack: ${error.stack}`
+      );
     }
   }
 

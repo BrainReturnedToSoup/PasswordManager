@@ -1,10 +1,7 @@
 const pool = require("../services/postgresql");
 const auth = require("../services/authProcessApis");
 
-const {
-  validateEmailVal,
-  validatePasswordVal,
-} = require("../utils/inputValidation");
+const { constraintValidation } = require("../utils/inputValidation");
 
 const { v4: uuid } = require("uuid");
 const promisify = require("util").promisify;
@@ -21,8 +18,7 @@ const cookieOptions = {
 
 //*****************POST******************/
 
-//POST requests on the /sign-up route which is for adding a new user using
-//the signup form values
+//POST requests on the /sign-up route which is for adding a new user using the signup form values
 
 async function validateAuth(req, res, next) {
   if (!req.cookies.jwt) {
@@ -67,14 +63,12 @@ async function validateAuth(req, res, next) {
 
 //input/constraint validation
 function validatePayload(req, res, next) {
-  const validEmail = validateEmailVal(req.body.email),
-    validPassword = validatePasswordVal(req.body.password);
+  const validEmail = constraintValidation.email(req.body.email),
+    validPassword = constraintValidation.password(req.body.password);
 
-  const valid = validEmail && validPassword;
-
-  if (!valid) {
+  if (!validEmail || !validPassword) {
     console.error(
-      "signupMW: constraint-validation-failure: ",
+      "signupMW: validatePayload: constraint-validation-failure ",
       `email: ${validEmail} `,
       `password: ${validPassword}`
     );
@@ -239,6 +233,8 @@ function sendToken(req, res) {
     .json({ success: true });
 }
 
+//*****************EXPORTS***************/
+
 const handleSignup = [
   validateAuth,
   validatePayload,
@@ -248,6 +244,4 @@ const handleSignup = [
   sendToken,
 ];
 
-//*****************EXPORTS***************/
-
-module.exports = { handleSignup };
+module.exports = handleSignup;

@@ -4,9 +4,9 @@ const promisify = require("util").promisify;
 const bcrypt = require("bcrypt"),
   bcryptHash = promisify(bcrypt.hash);
 
-const { validateAuth, clearSession } = require("./common/auth.js");
-const { errorResponse } = require("./common/errorResponse.js");
-const { validatePasswordVal } = require("../../../utils/inputValidation.js");
+const { validateAuth, clearSession } = require("./_common/auth.js");
+const errorResponse = require("./_common/errorResponse.js");
+const { constraintValidation } = require("../../../utils/inputValidation.js");
 
 const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums");
 
@@ -16,12 +16,10 @@ const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums");
 async function validatePayload(req, res, next) {
   const { oldPassword, newPassword } = req.body;
 
-  const oldPasswordValid = validatePasswordVal(oldPassword),
-    newPasswordValid = validatePasswordVal(newPassword);
+  const oldPasswordValid = constraintValidation.password(oldPassword),
+    newPasswordValid = constraintValidation.password(newPassword);
 
-  const valid = oldPasswordValid && newPasswordValid;
-
-  if (!valid) {
+  if (!oldPasswordValid || !newPasswordValid) {
     console.error(
       `setNewPasswordMW: validatePayload: constraint-validation-failure:
        oldPassword_valid: ${oldPasswordValid} newPassword_valid: ${newPasswordValid}

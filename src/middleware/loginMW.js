@@ -1,9 +1,6 @@
 const auth = require("../services/authProcessApis");
 
-const {
-  validateEmailVal,
-  validatePasswordVal,
-} = require("../utils/inputValidation");
+const { constraintValidation } = require("../utils/inputValidation");
 
 const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums");
 
@@ -41,32 +38,25 @@ async function validateAuth(req, res, next) {
     return;
   }
 
-  if (result.success) {
-    //if user is not authed due to expired token or if a data error occurred
-    if (("auth" in result && !result.auth) || "error" in result) {
-      next();
-      return;
-    }
-
-    //everything else means the user is already authed, continue the auth cycle with new token
-    res.status(400).cookie("jwt", result.newToken, cookieOptions).json({
-      success: false,
-      auth: true,
-    });
+  //if user is not authed due to expired token or if a data error occurred
+  if (("auth" in result && !result.auth) || "error" in result) {
+    next();
     return;
   }
 
-  next();
+  //everything else means the user is already authed, continue the auth cycle with new token
+  res.status(400).cookie("jwt", result.newToken, cookieOptions).json({
+    success: false,
+    auth: true,
+  });
 }
 
 //input/constraint validation
 function validatePayload(req, res, next) {
-  const validEmail = validateEmailVal(req.body.email),
-    validPassword = validatePasswordVal(req.body.password);
+  const validEmail = constraintValidation.email(req.body.email),
+    validPassword = constraintValidation.password(req.body.password);
 
-  const valid = validEmail && validPassword;
-
-  if (!valid) {
+  if (!validEmail || !validPassword) {
     console.error(
       "loginMW: constraint-validation-failure: ",
       `email: ${validEmail} `,
@@ -131,8 +121,8 @@ async function sendToken(req, res) {
   res.status(200).cookie("jwt", token, cookieOptions).json({ success: true }); //the token is stored in the users secured cookies, redirect to home
 }
 
-const handleLogin = [validateAuth, validatePayload, createSession, sendToken];
-
 //*****************EXPORTS***************/
 
-module.exports = { handleLogin };
+const handleLogin = [validateAuth, validatePayload, createSession, sendToken];
+
+module.exports = handleLogin;

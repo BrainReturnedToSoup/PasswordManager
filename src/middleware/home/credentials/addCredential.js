@@ -1,12 +1,10 @@
-const { validateAuth } = require("./common/auth");
-
-const { errorResponse } = require("./common/errorResponse.js");
-
+const validateAuth = require("./_common/auth.js");
+const errorResponse = require("./_common/errorResponse.js");
 const { inputValidation } = require("../../../utils/inputValidation");
 
-const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums.js");
-
 const { v4: generateUUID } = require("uuid");
+
+const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums.js");
 
 const pool = require("../../../services/postgresql.js");
 
@@ -36,7 +34,7 @@ async function addCredential(req, res, next) {
   const { name, emailUsername, password, description } = req.body,
     { uuid } = req.checkAuth;
 
-  const newCredID = generateUUID();
+  const credentialID = generateUUID().slice(0, 16);
 
   let connection, error;
 
@@ -55,7 +53,7 @@ async function addCredential(req, res, next) {
     )
     VALUES( $1, $2, $3, $4, $5, $6)
     `,
-      [newCredID, uuid, name, emailUsername, password, description]
+      [credentialID, uuid, name, emailUsername, password, description]
     );
   } catch (err) {
     console.error(
@@ -73,7 +71,7 @@ async function addCredential(req, res, next) {
     return;
   }
 
-  req.credentialID = newCredID; //send the credentialID back to the client for caching
+  req.credentialID = credentialID; //send the credentialID back to the client for caching
 
   next();
 }

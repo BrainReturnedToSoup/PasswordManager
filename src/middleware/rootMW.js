@@ -1,4 +1,4 @@
-const serveBundle = require("../utils/serveBundle");
+const serveBundle = require("../routes/_common/serveBundle");
 
 //******************GET******************/
 
