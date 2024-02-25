@@ -1,10 +1,8 @@
 const { validateAuth } = require("../_common/auth");
 const errorResponse = require("../_common/errorResponse");
-
 const pool = require("../../../../services/postgresql");
-
 const sendMail = require("../../../../utils/mail");
-const generateCode = require("../../../../utils/generateCode");
+const codeGenerator = require("../../../../utils/generateCode");
 
 const cookieOptions = {
   secure: true, //the cookie is only sent over https
@@ -16,7 +14,8 @@ const cookieOptions = {
 async function generateCode(req, res, next) {
   const { uuid } = req.checkAuth;
 
-  const verificationCode = generateCode();
+  //generates a random 6 digit code by default, not following valid number convention
+  const verificationCode = codeGenerator();
 
   let connection, error;
 
@@ -25,6 +24,7 @@ async function generateCode(req, res, next) {
 
     await connection.query(`BEGIN`);
 
+    //wipes any existing verification code resource. For the retry mechanism
     await connection.query(
       `
       DELETE FROM verification
@@ -33,6 +33,8 @@ async function generateCode(req, res, next) {
       [uuid]
     );
 
+    //creates the new resource, which includes a creation timestamp.
+    //This timestamp will be the base of the code expiry system
     await connection.query(
       `
       INSERT INTO verification (
@@ -67,7 +69,8 @@ async function generateCode(req, res, next) {
   next();
 }
 
-//retrieves the email corresponding to the session
+//retrieves the email corresponding to the session. Need to get the email
+//in order to email the user the corresponding code.
 async function retrieveEmail(req, res, next) {
   const { uuid } = req.checkAuth;
 
@@ -110,7 +113,7 @@ async function sendCode(req, res, next) {
   const mailOptions = {
     from: PROCESS.ENV.MAIL_USER,
     to: email,
-    subject: "Email Verification Code",
+    subject: "Verify Your Email: Verification Code",
     text: `Here is the code for verifying your account: ${verificationCode}`,
   };
 

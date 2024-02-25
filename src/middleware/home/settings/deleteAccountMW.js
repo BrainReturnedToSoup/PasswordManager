@@ -115,7 +115,7 @@ async function deleteAccount(req, res) {
       uuid,
     ]);
 
-    await connection.query(`DELETE FROM users WHERE user_uuid = $1`, [uuid]); //THIS LAST FOR REF INTEGRITY
+    await connection.query(`DELETE FROM users WHERE user_uuid = $1`, [uuid]); //THIS LAST DUE TO REF INTEGRITY (primary key user_uuid)
 
     await connection.query("COMMIT"); //ensures the query is a transaction
   } catch (err) {

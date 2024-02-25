@@ -1,8 +1,6 @@
 const { validateAuth } = require("../_common/auth");
 const errorResponse = require("../_common/errorResponse");
-
 const pool = require("../../../../services/postgresql");
-
 const { inputValidation } = require("../../../../utils/inputValidation");
 
 const cookieOptions = {
@@ -23,7 +21,8 @@ function validatePayload(req, res, next) {
   next();
 }
 
-//retrieves the verification code and expiry that was initialized by the user prior
+//retrieves the verification code and expiry corresponding to the user's session.
+//They should have created this resource when sending a verification code to their email.
 async function retrieveVerificationData(req, res, next) {
   const { uuid } = req.checkAuth;
 
@@ -64,13 +63,13 @@ async function retrieveVerificationData(req, res, next) {
 
 //validates if the corresponding verification request for the current session has expired or not
 function validateExpiry(req, res, next) {
-  const { creationTimestamp } = req,
-    currentTimestamp = new Date();
+  const { creationTimestamp } = req;
+  const currentTimestamp = new Date();
+  const tenMinutesInSeconds = 600;
 
   const differenceInSeconds =
     (creationTimestamp.getTime() - currentTimestamp.getTime()) * 1000;
 
-  const tenMinutesInSeconds = 600;
   if (differenceInSeconds > tenMinutesInSeconds) {
     errorResponse(req, res, 500, "verification-code-expired");
     return;
@@ -94,7 +93,7 @@ function validateCode(req, res, next) {
 
 //updates the verification status of the user to true, as well as deletes the verification
 //resources as they are not needed anymore.
-async function updateVerification(req, res, next) {
+async function applyVerification(req, res, next) {
   const { uuid } = req.checkAuth;
 
   let connection, error;
@@ -156,7 +155,7 @@ const verifyEmail = [
   retrieveVerificationData,
   validateExpiry,
   validateCode,
-  updateVerification,
+  applyVerification,
   renewToken,
 ];
 
