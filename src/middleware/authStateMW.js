@@ -1,5 +1,4 @@
 const auth = require("../services/authProcessApis");
-
 const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums");
 
 const cookieOptions = {

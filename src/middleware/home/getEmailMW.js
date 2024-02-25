@@ -1,6 +1,7 @@
-const { validateAuth } = require("../_common/auth.js");
-const errorResponse = require("../_common/errorResponse.js");
-const pool = require("../../../services/postgresql.js");
+const pool = require("../../services/postgresql.js");
+const { validateAuth } = require("./_common/auth.js");
+const errorResponse = require("./_common/errorResponse.js");
+const censorEmail = require("../../utils/censorEmail.js");
 
 const cookieOptions = {
   secure: true, //the cookie is only sent over https
@@ -8,7 +9,7 @@ const cookieOptions = {
   sameSite: "Strict", //prevents requests from different origins from using the cookie
 };
 
-async function getSettings(req, res, next) {
+async function getEmail(req, res, next) {
   const { uuid } = req.checkAuth;
 
   let connection, result, error;
@@ -18,24 +19,19 @@ async function getSettings(req, res, next) {
 
     result = await connection.oneOrNone(
       `
-        SELECT 
-          verified,
-          font_scale,
-          theme_selected,
-          lazy_loading,
-          session_length_minutes
-        FROM user_settings
+        SELECT email
+        FROM users
         WHERE user_uuid = $1
         `,
       [uuid]
     );
   } catch (err) {
-    console.error(`getSettings catch block: ${err} ${err.stack}`);
+    console.error(`getEmail catch block: ${err} ${err.stack}`);
     error = err;
   } finally {
     if (connection) {
       connection.done();
-    } //always release the connection as soon as possible
+    }
   }
 
   if (error) {
@@ -43,21 +39,21 @@ async function getSettings(req, res, next) {
     return;
   }
 
-  req.settings = result;
+  req.email = censorEmail(result.email);
 
   next();
 }
 
 function renewToken(req, res) {
   const { newToken } = req.checkAuth,
-    { settings } = req;
+    { email } = req;
 
   res
     .status(200)
     .cookie("jwt", newToken, cookieOptions)
-    .json({ success: true, settings });
+    .json({ success: true, email });
 }
 
-const getSettingsMW = [validateAuth, getSettings, renewToken];
+const getEmailMW = [validateAuth, getEmail, renewToken];
 
-module.exports = getSettingsMW;
+module.exports = getEmailMW;

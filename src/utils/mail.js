@@ -2,10 +2,15 @@ const nodemailer = require("nodemailer");
 const promisify = require("util").promisify;
 
 const transporter = nodemailer.createTransport({
-  service: PROCESS.ENV.MAIL_SERVICE,
+  host: "smtp-mail.outlook.com",
+  secureConnection: false,
+  port: 587,
+  tls: {
+    ciphers: "SSLv3",
+  },
   auth: {
-    user: PROCESS.ENV.MAIL_USER,
-    pass: PROCESS.ENV.MAIL_PASS,
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
   },
 });
 

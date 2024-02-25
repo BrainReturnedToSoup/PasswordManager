@@ -1,0 +1,3 @@
+function r(a){return a?/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(a)?"":"Email is invalid":""}function s(a){return a?a.length<12?"Password is too small. Must be between 12 and 20 characters":a.length>20?"Password is too large. Must be between 12 and 20 characters":/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/.test(a)?"":`Password is invalid. Must adhere to the following rules:
+     Atleast one uppercase and lowercase letter, atleast one digit,
+      atleast one special character, and only letters, digits, and specialized characters`:""}function i(a,t){return a&&a!==t?"Confirm password does not match password":""}export{i as a,r as b,s as v};

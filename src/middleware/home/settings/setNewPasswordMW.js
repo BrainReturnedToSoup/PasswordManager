@@ -1,13 +1,10 @@
 const pool = require("../../../services/postgresql.js");
-
 const promisify = require("util").promisify;
 const bcrypt = require("bcrypt"),
   bcryptHash = promisify(bcrypt.hash);
-
-const { validateAuth, clearSession } = require("./_common/auth.js");
-const errorResponse = require("./_common/errorResponse.js");
+const { validateAuth, clearSession } = require("../_common/auth.js");
+const errorResponse = require("../_common/errorResponse.js");
 const { constraintValidation } = require("../../../utils/inputValidation.js");
-
 const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums");
 
 //*****SET-NEW-PASSWORD*****/

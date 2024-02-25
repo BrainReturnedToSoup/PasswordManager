@@ -1,5 +1,5 @@
-const { validateAuth } = require("../_common/auth");
-const errorResponse = require("../_common/errorResponse");
+const { validateAuth } = require("../../_common/auth.js");
+const errorResponse = require("../../_common/errorResponse.js");
 const pool = require("../../../../services/postgresql");
 const { inputValidation } = require("../../../../utils/inputValidation");
 

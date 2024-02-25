@@ -1,5 +1,5 @@
-const { validateAuth } = require("../_common/auth");
-const errorResponse = require("../_common/errorResponse");
+const { validateAuth } = require("../../_common/auth.js");
+const errorResponse = require("../../_common/errorResponse.js");
 const pool = require("../../../../services/postgresql");
 const sendMail = require("../../../../utils/mail");
 const codeGenerator = require("../../../../utils/generateCode");
@@ -111,7 +111,7 @@ async function sendCode(req, res, next) {
   const { email, verificationCode } = req;
 
   const mailOptions = {
-    from: PROCESS.ENV.MAIL_USER,
+    from: process.env.MAIL_USER,
     to: email,
     subject: "Verify Your Email: Verification Code",
     text: `Here is the code for verifying your account: ${verificationCode}`,

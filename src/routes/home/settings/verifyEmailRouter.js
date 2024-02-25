@@ -7,7 +7,7 @@ const verifyEmail = require("../../../middleware/home/settings/verifyEmail/verif
 //send it to the user via email for the user to copy and paste into the form for email verification
 router.post("/", initCode);
 
-//takes the verification code supplied by a request, 
+//takes the verification code supplied by a request, validates such, and thus updates the users verification status
 router.put("/", verifyEmail);
 
 module.exports = router;

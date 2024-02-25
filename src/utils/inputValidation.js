@@ -110,6 +110,16 @@ const inputValidation = {
     return validationResult.error !== null;
   },
 
+  verifyEmail: (verificationCode) => {
+    const schema = Joi.string()
+      .length(6)
+      .pattern(new RegExp("^[0-9]{1,6}$"))
+      .required();
+
+    const validationResult = schema.validate(verificationCode);
+
+    return validationResult.error !== null;
+  },
 };
 
 module.exports = {

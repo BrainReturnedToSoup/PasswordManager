@@ -1,13 +1,10 @@
 const pool = require("../services/postgresql");
 const auth = require("../services/authProcessApis");
-
 const { constraintValidation } = require("../utils/inputValidation");
-
 const { v4: uuid } = require("uuid");
 const promisify = require("util").promisify;
 const bcrypt = require("bcrypt"),
   bcryptHash = promisify(bcrypt.hash);
-
 const OUTBOUND_RESPONSE = require("../enums/serverResponseEnums");
 
 const cookieOptions = {

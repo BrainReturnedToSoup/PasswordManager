@@ -1,10 +1,8 @@
 const pool = require("../../../services/postgresql.js");
 const bcrypt = require("bcrypt");
-
-const { validateAuth } = require("./_common/auth.js");
-const errorResponse = require("./_common/errorResponse.js");
+const { validateAuth } = require("../_common/auth.js");
+const errorResponse = require("../_common/errorResponse.js");
 const { constraintValidation } = require("../../../utils/inputValidation.js");
-
 const OUTBOUND_RESPONSE = require("../../../enums/serverResponseEnums.js");
 
 //input/constraint validation
